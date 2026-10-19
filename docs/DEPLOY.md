@@ -17,6 +17,14 @@ Installed app builds need no update: the URLs do not change.
 
 ## A. Install and rehearse (WordPress stays live; nothing changes for users)
 
+**Scripted:** in cPanel → Terminal,
+
+```bash
+cd ~ && git clone https://github.com/Alyabdelhadi/medvaultbackend.git medvault-backend && bash ~/medvault-backend/deploy/install.sh
+```
+
+does all of this section, including the database and `.env`. The manual steps follow.
+
 1. **Database.** cPanel → *MySQL Database Wizard*: create a database (e.g.
    `medvaultapp_laravel`) and a user with *All Privileges* on it.
 
@@ -83,6 +91,12 @@ Installed app builds need no update: the URLs do not change.
    Re-run the import with `--replace` as often as you like until cutover.
 
 ## B. Cutover (a quiet hour; about 15 minutes)
+
+**Scripted:** untick polling in WordPress (step 1 below), then run
+`bash ~/medvault-backend/deploy/switch.sh`. It does steps 2–7 back to back and puts
+the `.htaccess` back by itself if a smoke test fails. `--rollback` undoes it.
+Afterwards purge LiteSpeed Cache (WordPress admin → LiteSpeed Cache → Toolbox →
+Purge All). The manual steps follow.
 
 Changes users make in WordPress between the final import and step 4 are lost,
 so do steps 3–4 back to back.
