@@ -68,3 +68,10 @@ PHP is a static build with no system install; Composer runs with
   and insurance photos during sign-up, before it has a token. The protection is
   content-sniffed images only, a size cap, a per-IP limit and a random 40-character
   file name. Do not put the client's file name in the URL.
+- **Lab rows are held to the plugin byte for byte** (`PluginParityTest`). After
+  changing `LabRows`, re-run it; if the plugin changed, re-record with
+  `tools/plugin-golden.php`. Never hand-edit a golden file, and never commit
+  vendor-kit data or names: the kit golden stays in `storage/testing`.
+- **Signed `/lab-file` links use a key derived from APP_KEY**, so links issued
+  by WordPress stop working at cutover. They expire within a day anyway, and the
+  app gets fresh ones on its next results load.

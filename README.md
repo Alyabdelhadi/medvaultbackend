@@ -18,8 +18,24 @@ Done:
    WordPress output (`tests/Fixtures/wordpress-live`), and the photo upload at
    `/wp-json/wp/v2/media`.
 
-Next: lab results (`/lab-results`, `/lab-file`, `/dg/requests`, `/ai-summary`),
-then notifications and the poller, then the admin.
+4. Lab results: `/lab-results` (12 s inline budget, then lazy), `/lab-results/{nb}`,
+   signed `/lab-file` proxying, `/dg/requests` and `/ai-summary`. Row normalization
+   is held byte-for-byte to the plugin via golden files (`tools/plugin-golden.php`).
+
+Next: notifications (device registry, FCM, `/notifications`) and the result-ready
+poller, then the admin.
+
+## Parity with the plugin
+
+```bash
+php tools/plugin-golden.php --nova=../Nova \
+    --formatting=/path/to/wordpress/wp-includes/formatting.php \
+    --kit=~/Downloads/MedVault-Dev-Kit/Data/Seed
+php artisan test --filter=PluginParityTest
+```
+
+The synthetic golden is committed; the vendor-kit one lands in `storage/testing`
+(ignored by git, as the kit may hold real patient names).
 
 ## Importing from WordPress
 
