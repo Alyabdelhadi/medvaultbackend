@@ -2,6 +2,7 @@
 
 namespace App\Services\Otp;
 
+use App\Support\HttpErrors;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,7 @@ class SmsGateway
                 'variables' => $code,
             ]);
         } catch (ConnectionException $e) {
-            return $e->getMessage();
+            return HttpErrors::safeMessage($e);
         }
 
         $status = $response->status();

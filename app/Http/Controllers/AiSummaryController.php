@@ -7,6 +7,7 @@ use App\Http\WpError;
 use App\Models\AiSummary;
 use App\Services\Labs\LabConfig;
 use App\Services\Labs\LabRegistry;
+use App\Support\HttpErrors;
 use App\Support\WordPress\Sanitize;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -147,7 +148,7 @@ class AiSummaryController extends Controller
                     'max_tokens' => 1000,
                 ]);
         } catch (ConnectionException $e) {
-            throw new WpError('openai_request_failed', $e->getMessage(), 502);
+            throw new WpError('openai_request_failed', HttpErrors::safeMessage($e), 502);
         }
 
         $body = $response->json();

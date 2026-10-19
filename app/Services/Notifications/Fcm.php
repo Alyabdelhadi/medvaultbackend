@@ -3,6 +3,7 @@
 namespace App\Services\Notifications;
 
 use App\Models\Setting;
+use App\Support\HttpErrors;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -43,7 +44,7 @@ class Fcm
             $response = Http::timeout(15)->withToken($accessToken)->asJson()
                 ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", ['message' => $message]);
         } catch (ConnectionException $e) {
-            return $this->failure($e->getMessage());
+            return $this->failure(HttpErrors::safeMessage($e));
         }
 
         if ($response->status() === 200) {

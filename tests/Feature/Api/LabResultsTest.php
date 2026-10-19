@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\LabAccount;
 use App\Services\Labs\LabRows;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -116,6 +117,20 @@ class LabResultsTest extends ApiTestCase
         $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
             ->assertJsonPath('count', 2)
             ->assertJsonPath('errors', [['lab_id' => 9, 'lab_name' => 'Bekaa Hospital', 'message' => 'Lab system returned HTTP 502.']]);
+    }
+
+    /** A timed-out lab is reported, but never with its address or token. */
+    public function test_an_unreachable_lab_is_reported_without_its_address(): void
+    {
+        $this->verdun();
+        [$user, $token] = $this->signedIn();
+        $this->giveLabToken($user->id, 5, 'good');
+        Http::fake(fn () => throw new ConnectionException('cURL error 28: Operation timed out after 15001 milliseconds with 0 bytes received (see https://curl.se/libcurl/c/libcurl-errors.html) for https://lab5.test/api/mobile/request?tcToken=good'));
+
+        $response = $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
+            ->assertJsonPath('errors.0.message', 'cURL error 28: Operation timed out after 15001 milliseconds with 0 bytes received');
+        $this->assertStringNotContainsString('lab5.test', $response->getContent());
+        $this->assertStringNotContainsString('good', $response->getContent());
     }
 
     public function test_a_lab_that_keeps_refusing_is_not_asked_again(): void

@@ -4,6 +4,7 @@ namespace App\Services\Labs;
 
 use App\Models\LabAccount;
 use App\Models\User;
+use App\Support\HttpErrors;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -134,7 +135,7 @@ final class LabApi
         try {
             return Http::timeout($cfg->timeout)->withHeaders($cfg->headers)->get($url);
         } catch (ConnectionException $e) {
-            return new LabFailure(self::HTTP_FAILED, $e->getMessage(), 500);
+            return new LabFailure(self::HTTP_FAILED, HttpErrors::safeMessage($e), 500);
         }
     }
 

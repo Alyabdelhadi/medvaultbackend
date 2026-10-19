@@ -59,6 +59,14 @@ if grep -qF "$BEGIN" "$HTACCESS"; then
   fail "The routing block is already in $HTACCESS. To redo the switch: bash deploy/switch.sh --rollback first."
 fi
 
+step "Bringing the install up to date"
+# The cron command pulls the code before running this; dependencies, schema
+# and caches follow it here.
+"$PHP" -d allow_url_fopen=1 -d memory_limit=-1 composer.phar install --no-dev --optimize-autoloader --no-interaction --no-progress
+"$PHP" artisan migrate --force
+"$PHP" artisan config:cache >/dev/null && "$PHP" artisan route:cache >/dev/null && "$PHP" artisan view:cache >/dev/null
+echo "Code at $(git rev-parse --short HEAD)."
+
 step "Backups"
 bash deploy/backup.sh
 cp "$HTACCESS" "$HOME/htaccess-app-$(date +%Y%m%d_%H%M%S).bak"
