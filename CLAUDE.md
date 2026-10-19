@@ -1,0 +1,70 @@
+# CLAUDE.md
+
+**medvault-backend** is the Laravel replacement for the MedVault WordPress plugin
+(`functions .php` in `../Nova`). The Flutter app in `../Nova` is the client.
+
+The goal is a backend the existing app cannot tell apart from WordPress: same
+paths (`/app/wp-json/custom/v1/*`, via a rewrite), same JSON, same ids, same
+tokens. The lab-engine rules in `../Nova/CLAUDE.md` ("Multi-lab results APIs",
+"Lab token lifecycle", "Notifications", "Result rows are lazy") are
+requirements for this port, not background. Verdun's output must not change.
+
+## Commands
+
+```bash
+export PATH=$HOME/development/medvault-local/bin:$PATH   # php, composer
+php artisan test                                          # SQLite, in memory
+DB_CONNECTION=pgsql DB_PORT=54329 DB_DATABASE=medvault_test DB_USERNAME=postgres \
+  php artisan test                                        # the production engine
+local-dev/start.sh                                        # portable PostgreSQL + server
+php artisan medvault:import-wordpress [--replace] [--site-url=...]
+vendor/bin/pint                                           # code style
+```
+
+PHP is a static build with no system install; Composer runs with
+`curl_multi_exec` disabled because that build's curl aborts on HTTP/3.
+
+## Load-bearing decisions
+
+- **Ids are WordPress ids.** Users and labs keep their wp ids: they are in
+  signed PDF links, `lab_id` on app requests, notifications and `lab_accounts`.
+- **No `hashed` cast on `User::password`.** Imported hashes are `$wp$2y$`,
+  `$P$` or md5, which Laravel does not recognise, so the cast would hash them
+  again. `WordPressPassword::check()` verifies them; rehash to bcrypt on the
+  first successful sign-in.
+- **Bearer tokens are stored as sha256** (`users.api_token_hash`). The plaintext
+  the app holds keeps working.
+- **`lab_accounts.seen_status`: null means not seeded, `{}` means seeded and
+  empty.** Losing the difference re-seeds the account and swallows every result
+  that turned ready meanwhile. It is always a JSON object (`JsonMap` cast):
+  request numbers that run 0..n must not be re-indexed into a list.
+- **`lab_id` 0 is the legacy single-lab account**, not a row in `labs`; hence
+  no foreign key on `lab_accounts.lab_id`.
+- **Lab API fields are nullable** where WordPress told "never saved" apart from
+  a value. Apply the plugin's defaults in code, quirks included: a saved
+  priority of `0` meant `10` (`?: 10`).
+- **Secrets are encrypted with APP_KEY**: lab tokens, lab API headers, Firebase
+  credentials. Losing APP_KEY loses them; back it up with the database.
+- **Times:** `notifications.created_at`, `lab_accounts.polled_at` and device
+  times were site-local in WordPress. `APP_TIMEZONE` must match the old site.
+- **WordPress request semantics on `wp-json/*`:** no `TrimStrings`, no
+  `ConvertEmptyStringsToNull` (bootstrap/app.php). Passwords are compared as
+  typed, "required" means "not null" (`ReadsWordPressParams`), and an empty
+  `id_image` / `blood_type` is how the app clears one. Errors are `WpError`:
+  `{code, message, data: {status}}`; unknown routes and wrong methods are
+  `rest_no_route` 404.
+- **Sanitizers are ports** (`Support/WordPress/Sanitize`). The app shows
+  `message` verbatim, so validation order and wording follow the plugin, even
+  where WordPress was lenient (an unusable email is dropped, not rejected).
+- **`LabTokenService` is the only lab login.** Refused (`lab_login_failed`,
+  `no_mobile`), throttled (`lab_rate_limited`, including Bekaa's 200 "Too many
+  attempts") and unreachable (`external_api_error`) stay distinct; only a
+  refusal increments `auth_failures`, and only "every lab refused" is
+  `lab_account_invalid`.
+- **Parity fixtures:** `tests/Fixtures/wordpress-live/*.json` are real responses
+  from the WordPress site, and the tests rebuild the rows and assert identical
+  output. Refresh them from the live site; never edit them to make a test pass.
+- **`POST /wp-json/wp/v2/media` is anonymous on purpose.** The app uploads ID
+  and insurance photos during sign-up, before it has a token. The protection is
+  content-sniffed images only, a size cap, a per-IP limit and a random 40-character
+  file name. Do not put the client's file name in the URL.
