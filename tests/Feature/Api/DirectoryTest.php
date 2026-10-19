@@ -83,8 +83,11 @@ class DirectoryTest extends ApiTestCase
 
         // Title order ignores case, as MySQL's collation did.
         $this->assertSame(['alpha clinic', 'Beta Lab', 'Zahle Lab'], array_column($this->getJson(self::API.'/labs')->json('data'), 'name'));
-        // per_page=0 is a page of one; the response still says 0.
-        $this->getJson(self::API.'/labs?per_page=0')->assertJsonPath('per_page', 0)->assertJsonCount(1, 'data')->assertJsonPath('total_pages', 3);
+        // per_page=0 falls back to the site's posts_per_page, as the live site
+        // showed; the response still says 0.
+        $this->getJson(self::API.'/labs?per_page=0')->assertJsonPath('per_page', 0)->assertJsonCount(3, 'data')->assertJsonPath('total_pages', 1);
+        Setting::put('posts_per_page', 2);
+        $this->getJson(self::API.'/labs?per_page=0')->assertJsonCount(2, 'data')->assertJsonPath('total_pages', 2);
     }
 
     public function test_fallbacks_and_capabilities(): void

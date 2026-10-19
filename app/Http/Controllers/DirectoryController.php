@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\WpError;
 use App\Models\Lab;
+use App\Models\Setting;
 use App\Services\Labs\LabPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,12 +14,13 @@ class DirectoryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        // absint() on both, defaulting to 10 and 1. WP_Query reads a page
-        // size of 0 as 1 and a page of 0 as the first page, but the response
-        // echoes the page that was asked for.
+        // absint() on both, defaulting to 10 and 1. WP_Query reads a page size
+        // of 0 as the site's posts_per_page (10 on the live site, confirmed
+        // against it) and a page of 0 as the first; the response echoes what
+        // was asked for.
         $perPage = abs((int) $request->query('per_page', 10));
         $page = abs((int) $request->query('page', 1));
-        $size = max(1, $perPage);
+        $size = $perPage > 0 ? $perPage : max(1, (int) Setting::get('posts_per_page', 10));
 
         $query = Lab::published();
         $total = (clone $query)->count();

@@ -535,6 +535,8 @@ final class WordPressImporter
             'poll_batch_size' => max(1, (int) ($this->option('medvault_poll_batch_size') ?? 50)),
             'poll_cursor' => max(0, (int) ($this->option('medvault_poll_cursor') ?? 0)),
             'lab_api_bootstrapped' => (bool) $this->option('medvault_lab_api_bootstrapped'),
+            // What WP_Query falls back to for a page size of 0.
+            'posts_per_page' => max(1, (int) ($this->option('posts_per_page') ?? 10)),
         ];
 
         $lastRun = Serialized::decode($this->option('medvault_poll_last_run'));
