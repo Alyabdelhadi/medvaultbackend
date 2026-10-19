@@ -26,7 +26,8 @@ class Doctor extends Command
     public function handle(): int
     {
         $this->components->info('PHP and extensions');
-        $this->check(version_compare(PHP_VERSION, '8.3.0', '>='), 'PHP '.PHP_VERSION, 'Laravel 13 needs PHP 8.3 or newer.');
+        $this->check(version_compare(PHP_VERSION, '8.3.0', '>='), 'PHP '.PHP_VERSION.' (command line)', 'Laravel 13 needs PHP 8.3 or newer.');
+        $this->line('    <fg=gray>The website may run a different PHP. Check https://medvaultapp.com/app/medvault.php/up answers 200.</>');
         foreach (['pdo', 'mbstring', 'openssl', 'fileinfo', 'curl', 'tokenizer', 'xml', 'ctype', 'json'] as $ext) {
             $this->check(extension_loaded($ext), "ext-{$ext}", "Enable the {$ext} extension (cPanel → Select PHP Version).");
         }
@@ -69,7 +70,7 @@ class Doctor extends Command
         $this->components->info('Scheduler');
         $seen = Setting::get('scheduler_seen_at');
         $alive = is_string($seen) && strtotime($seen) >= now()->subMinutes(5)->getTimestamp();
-        $this->check($alive, 'scheduler heartbeat '.($seen ?: 'never'), 'Add the cron line: * * * * * cd ~/medvault-backend && /usr/local/bin/ea-php84 artisan schedule:run', warn: ! $this->option('cutover'));
+        $this->check($alive, 'scheduler heartbeat '.($seen ?: 'never'), 'Add in cPanel → Cron Jobs (Once Per Minute): cd '.base_path().' && '.PHP_BINARY.' artisan schedule:run >> /dev/null 2>&1', warn: ! $this->option('cutover'));
         $polling = Setting::get('poll_enabled', true) !== false;
         $this->line('  Result polling is '.($polling ? '<fg=yellow>ON</>' : 'OFF').'. Only one server may poll: turn it off in WordPress when it is on here.');
 

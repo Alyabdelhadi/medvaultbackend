@@ -171,7 +171,13 @@ CRON="* * * * * cd $APP && $PHP artisan schedule:run >> /dev/null 2>&1"
 if crontab -l 2>/dev/null | grep -F "$APP && $PHP artisan schedule:run" >/dev/null; then
   echo "Already installed."
 else
-  ( crontab -l 2>/dev/null; echo "$CRON" ) | crontab - && echo "Installed: $CRON"
+  if ( crontab -l 2>/dev/null; echo "$CRON" ) | crontab - 2>/dev/null; then
+    echo "Installed: $CRON"
+  else
+    # cPanel refuses crontab from inside a cron job. Add it in cPanel → Cron Jobs.
+    echo "Could not install it here. Add this in cPanel → Cron Jobs (Once Per Minute):"
+    echo "  cd $APP && $PHP artisan schedule:run >> /dev/null 2>&1"
+  fi
 fi
 
 step "Health check"
