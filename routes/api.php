@@ -6,6 +6,7 @@ use App\Http\Controllers\ContentController;
 use App\Http\Controllers\DgController;
 use App\Http\Controllers\DirectoryController;
 use App\Http\Controllers\LabResultsController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -55,3 +56,11 @@ Route::middleware('app.token')->group(function () {
 // Authorised inside: the OS browser opens it with no headers, so a signed
 // link is the credential. A bearer token is accepted too.
 Route::get('lab-file', [LabResultsController::class, 'file']);
+
+// Devices and the in-app notification list.
+Route::middleware('app.token')->group(function () {
+    Route::post('device/register', [NotificationController::class, 'register']);
+    Route::post('device/unregister', [NotificationController::class, 'unregister']);
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::post('notifications/read', [NotificationController::class, 'read']);
+});

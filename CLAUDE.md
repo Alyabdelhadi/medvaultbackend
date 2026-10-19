@@ -75,3 +75,10 @@ PHP is a static build with no system install; Composer runs with
 - **Signed `/lab-file` links use a key derived from APP_KEY**, so links issued
   by WordPress stop working at cutover. They expire within a day anyway, and the
   app gets fresh ones on its next results load.
+- **The poller (`ResultPoller`) keeps the plugin's guards:** first poll per
+  (user, lab) only seeds; `ready_signal = none` is never polled; the stored marker
+  is `report_datetime` for such labs; the duplicate check includes `lab_id`;
+  patients only; one run at a time (cache lock). FCM tokens are pruned on
+  `UNREGISTERED`/`NOT_FOUND` only, never `INVALID_ARGUMENT`.
+- **Run only one poller across both stacks during migration**, or every alert goes
+  out twice (the duplicate check cannot see the other database).

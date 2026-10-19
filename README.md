@@ -22,8 +22,24 @@ Done:
    signed `/lab-file` proxying, `/dg/requests` and `/ai-summary`. Row normalization
    is held byte-for-byte to the plugin via golden files (`tools/plugin-golden.php`).
 
-Next: notifications (device registry, FCM, `/notifications`) and the result-ready
-poller, then the admin.
+5. Notifications: `/device/register`, `/device/unregister`, `/notifications`,
+   `/notifications/read`, FCM v1 (topic broadcast and per-device), and the
+   result-ready poller (`medvault:poll-results`, scheduled every minute, runs
+   when the admin interval has passed).
+
+Next: the admin panel (labs and their API settings, content, push and result
+alerts, AI switch, lab managers, patients/doctors/guarantors with CSV export).
+
+## Deploying the scheduler
+
+One cron entry replaces WP-Cron, which only fired on site traffic:
+
+```
+* * * * * cd /path/to/medvault-backend && php artisan schedule:run >> /dev/null 2>&1
+```
+
+While WordPress is still live, keep only one poller running (turn polling off
+in WordPress or here), or patients get every alert twice.
 
 ## Parity with the plugin
 
