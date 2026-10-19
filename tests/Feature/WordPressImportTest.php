@@ -217,6 +217,16 @@ class WordPressImportTest extends TestCase
         ]));
     }
 
+    public function test_if_empty_skips_an_imported_database_successfully(): void
+    {
+        $this->artisan('medvault:import-wordpress')->assertSuccessful();
+
+        $this->artisan('medvault:import-wordpress --if-empty')
+            ->expectsOutputToContain('Already imported')
+            ->assertSuccessful();
+        $this->assertSame(4, User::count());
+    }
+
     public function test_refuses_to_overwrite_an_imported_database_without_replace(): void
     {
         $this->artisan('medvault:import-wordpress')->assertSuccessful();

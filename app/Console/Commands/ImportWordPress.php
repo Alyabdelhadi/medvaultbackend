@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use App\Services\WordPress\WordPressImporter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -12,12 +13,19 @@ use Throwable;
 #[Signature('medvault:import-wordpress
     {--prefix= : WordPress table prefix (default WP_DB_PREFIX, or wp_)}
     {--site-url= : The WordPress site, e.g. https://medvaultapp.com/app, to copy the rendered About/FAQ HTML from}
-    {--replace : Clear every imported table first. Before cutover only.}')]
+    {--replace : Clear every imported table first. Before cutover only.}
+    {--if-empty : Do nothing (successfully) when users already exist; for re-runnable install scripts}')]
 #[Description('Copy users, labs, lab accounts, devices, notifications and settings from the WordPress database')]
 class ImportWordPress extends Command
 {
     public function handle(): int
     {
+        if ($this->option('if-empty') && User::query()->exists()) {
+            $this->components->info('Already imported. To refresh before cutover: php artisan medvault:import-wordpress --replace');
+
+            return self::SUCCESS;
+        }
+
         $prefix = (string) ($this->option('prefix') ?: env('WP_DB_PREFIX', 'wp_'));
         $siteUrl = $this->option('site-url') ?: env('WP_SITE_URL');
 
