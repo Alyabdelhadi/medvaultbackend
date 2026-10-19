@@ -37,16 +37,19 @@ if [ -d "$APP/.git" ]; then git -C "$APP" pull --ff-only; else git clone "$REPO"
 cd "$APP"
 
 step "Composer"
+# Many hosts turn allow_url_fopen off for the CLI. Composer needs it; the app
+# does not (its HTTP goes through curl), so it is switched on for Composer only.
+COMPOSER_PHP=("$PHP" -d allow_url_fopen=1 -d memory_limit=-1)
 # Always our own signature-checked composer.phar, run with the chosen PHP: a host's
 # composer may be a shell wrapper, or run under a different PHP version.
 if [ ! -f "$APP/composer.phar" ]; then
   EXPECTED="$(curl -fsSL https://composer.github.io/installer.sig)"
   curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup-$$.php
   [ "$("$PHP" -r "echo hash_file('sha384', '/tmp/composer-setup-$$.php');")" = "$EXPECTED" ] || fail "Composer installer signature mismatch."
-  "$PHP" /tmp/composer-setup-$$.php --quiet --install-dir="$APP" --filename=composer.phar
+  "${COMPOSER_PHP[@]}" /tmp/composer-setup-$$.php --quiet --install-dir="$APP" --filename=composer.phar
   rm -f /tmp/composer-setup-$$.php
 fi
-"$PHP" "$APP/composer.phar" install --no-dev --optimize-autoloader --no-interaction --no-progress
+"${COMPOSER_PHP[@]}" "$APP/composer.phar" install --no-dev --optimize-autoloader --no-interaction --no-progress
 
 step "Configuration (.env)"
 if [ ! -f .env ]; then
@@ -173,6 +176,7 @@ fi
 
 step "Health check"
 "$PHP" artisan medvault:doctor || true
+touch "$HOME/medvault-install.done"
 
 cat <<EOF
 

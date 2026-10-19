@@ -20,8 +20,8 @@ if [ -z "$(find "$HOME" -maxdepth 1 -name 'medvault_db_*.sql*' -size +1k -mmin -
   exit 1
 fi
 
-COMPOSER="${COMPOSER:-composer}"
-"$PHP" "$(command -v "$COMPOSER")" install --no-dev --optimize-autoloader --no-interaction
+[ -f composer.phar ] || { echo "composer.phar missing; run deploy/install.sh once." >&2; exit 1; }
+"$PHP" -d allow_url_fopen=1 -d memory_limit=-1 composer.phar install --no-dev --optimize-autoloader --no-interaction
 
 "$PHP" artisan down --retry=30 || true
 "$PHP" artisan migrate --force
