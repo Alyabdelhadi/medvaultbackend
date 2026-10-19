@@ -8,12 +8,11 @@
 set -euo pipefail
 
 APP="$(cd "$(dirname "$0")/.." && pwd)"
-PHP="${PHP:-/usr/local/bin/ea-php84}"
 WEB="${WEB:-$HOME/public_html/app}"
 cd "$APP"
 
-[ -x "$PHP" ] || PHP=php
-"$PHP" -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' || { echo "PHP 8.3+ needed; rerun with PHP=/usr/local/bin/ea-php84" >&2; exit 1; }
+. "$(dirname "$0")/find-php.sh"
+find_php || exit 1
 [ -f .env ] || { echo "No .env. Copy .env.example, fill it in, then: $PHP artisan key:generate" >&2; exit 1; }
 
 if [ -z "$(find "$HOME" -maxdepth 1 -name 'medvault_db_*.sql*' -size +1k -mmin -120 2>/dev/null)" ]; then

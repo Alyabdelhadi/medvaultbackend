@@ -18,14 +18,14 @@ set -euo pipefail
 
 APP="$HOME/medvault-backend"
 WP="${WP:-$HOME/public_html/app}"
-PHP="${PHP:-/usr/local/bin/ea-php84}"
 SITE="${SITE:-https://medvaultapp.com/app}"
 HTACCESS="$WP/.htaccess"
 BEGIN="# BEGIN MedVault Laravel"
 END="# END MedVault Laravel"
 step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
-[ -x "$PHP" ] || PHP="$(command -v php)"
+. "$(dirname "$0")/find-php.sh"
+find_php || fail "Set PHP=/path/to/php (a CLI PHP 8.3+) and rerun."
 cd "$APP"
 
 remove_block() {

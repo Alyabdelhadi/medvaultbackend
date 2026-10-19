@@ -15,6 +15,11 @@ everything else under /app                         ─▶ WordPress, as today
 
 Installed app builds need no update: the URLs do not change.
 
+> **PHP on cPanel:** `/usr/local/bin/ea-php84` and the `php` on cron's PATH can be
+> php-cgi, which cannot run artisan. The scripts find the CLI binary themselves
+> (`deploy/find-php.sh`, usually `/opt/cpanel/ea-php84/root/usr/bin/php`); use that
+> path wherever this document says `/usr/local/bin/ea-php84`.
+
 ## A. Install and rehearse (WordPress stays live; nothing changes for users)
 
 **Scripted:** in cPanel → Terminal,

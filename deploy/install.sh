@@ -16,14 +16,13 @@ set -euo pipefail
 
 APP="$HOME/medvault-backend"
 WP="${WP:-$HOME/public_html/app}"
-PHP="${PHP:-/usr/local/bin/ea-php84}"
 REPO="https://github.com/Alyabdelhadi/medvaultbackend.git"
 step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 step "Checking the server"
-[ -x "$PHP" ] || PHP="$(command -v php || true)"
-[ -n "$PHP" ] && "$PHP" -r 'exit(PHP_VERSION_ID >= 80300 ? 0 : 1);' || fail "PHP 8.3+ not found. Rerun with PHP=/usr/local/bin/ea-php84 (or ea-php83)."
+. "$(dirname "$0")/find-php.sh"
+find_php || fail "Set PHP=/path/to/php (a CLI PHP 8.3+) and rerun."
 echo "PHP: $PHP ($("$PHP" -r 'echo PHP_VERSION;'))"
 for ext in pdo_mysql mbstring openssl fileinfo curl xml tokenizer ctype; do
   "$PHP" -r "exit(extension_loaded('$ext') ? 0 : 1);" || fail "PHP extension $ext is off. Enable it in cPanel → Select PHP Version, then rerun."
