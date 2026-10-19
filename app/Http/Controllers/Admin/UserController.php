@@ -1,0 +1,196 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Lab;
+use App\Models\LabAccount;
+use App\Models\User;
+use App\Services\Accounts\ApiTokens;
+use App\Services\Accounts\Passwords;
+use App\Services\Admin\AdminUserCreator;
+use App\Services\Admin\UserDirectory;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+/**
+ * Patients, Doctors and Guarantors. Lab managers reach these pages only,
+ * limited to their own lab by UserDirectory, which every query here goes
+ * through, the CSV export included.
+ */
+class UserController extends Controller
+{
+    private const SLUGS = ['patients' => 'P', 'doctors' => 'D', 'guarantors' => 'G'];
+
+    public const PER_PAGE = 20;
+
+    public function __construct(private readonly UserDirectory $directory) {}
+
+    public function index(Request $request, string $slug): View
+    {
+        $type = $this->type($slug);
+        $search = trim((string) $request->query('s', ''));
+        $query = $this->directory->query($type, $request->user());
+        $total = (clone $query)->count();
+        $matches = $this->directory->search($query, $search);
+
+        $page = max(1, (int) $request->query('page', 1));
+        $paginator = new LengthAwarePaginator(
+            $matches->forPage($page, self::PER_PAGE)->values(),
+            $matches->count(),
+            self::PER_PAGE,
+            $page,
+            ['path' => $request->url(), 'query' => array_filter(['s' => $search])],
+        );
+
+        return view('admin.users.index', [
+            'slug' => $slug,
+            'type' => $type,
+            'title' => UserDirectory::PLURALS[$type],
+            'users' => $paginator,
+            'total' => $total,
+            'search' => $search,
+            'created' => $request->query('created') ? User::find($request->query('created')) : null,
+        ]);
+    }
+
+    public function create(Request $request, string $slug): View
+    {
+        $type = strtoupper((string) $request->query('type', $this->type($slug)));
+
+        return view('admin.users.create', [
+            'slug' => $slug,
+            'type' => isset(UserDirectory::TYPES[$type]) ? $type : $this->type($slug),
+            'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
+            'managerLab' => UserDirectory::scopeFor($request->user()),
+        ]);
+    }
+
+    public function store(Request $request, string $slug, AdminUserCreator $creator): RedirectResponse
+    {
+        $this->type($slug);
+        $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'username', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id', 'owner_lab_id']);
+
+        // A lab manager's accounts belong to their lab, whatever the form says:
+        // the lab field is a plain number in the markup.
+        $managerLab = UserDirectory::scopeFor($request->user());
+        if ($managerLab > 0) {
+            $input['dg_lab_id'] = $managerLab;
+            $input['owner_lab_id'] = $managerLab;
+        }
+
+        [$user, $errors] = $creator->create($input);
+        if ($user === null) {
+            return back()->withInput($request->except('password'))->withErrors($errors)
+                ->with(['status' => 'Please correct the highlighted fields.', 'status_type' => 'error']);
+        }
+
+        // Land on the list that contains the new account.
+        $listSlug = array_search($user->functionType(), self::SLUGS, true);
+
+        return redirect()->route('admin.users.index', ['slug' => $listSlug, 'created' => $user->id]);
+    }
+
+    public function show(Request $request, string $slug, User $user): View
+    {
+        $this->type($slug);
+        abort_unless($this->directory->canSee($request->user(), $user), 404);
+
+        return view('admin.users.show', [
+            'slug' => $slug,
+            'user' => $user,
+            'accounts' => LabAccount::where('user_id', $user->id)->orderBy('lab_id')->get(),
+            'labNames' => Lab::pluck('title', 'id'),
+            'devices' => $user->devices()->orderByDesc('updated_at')->get(),
+            'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
+        ]);
+    }
+
+    public function export(Request $request, string $slug): StreamedResponse
+    {
+        $type = $this->type($slug);
+        $search = trim((string) $request->query('s', ''));
+        $users = $this->directory->search($this->directory->query($type, $request->user()), $search);
+        $filename = sprintf('medvault-%s-%s.csv', $slug, now('UTC')->format('Y-m-d'));
+
+        return response()->streamDownload(function () use ($users) {
+            $out = fopen('php://output', 'w');
+            // A BOM, so Excel shows non-ASCII names correctly.
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Name', 'Username', 'Email', 'Mobile', 'Registration Date', 'Type'], ',', '"', '');
+            foreach ($users as $u) {
+                fputcsv($out, [
+                    $u->display_name,
+                    $u->username,
+                    (string) $u->email,
+                    // A leading apostrophe stops Excel turning "+961..." into a formula.
+                    "'".($u->mobile_number ?? ''),
+                    $u->created_at?->format('Y-m-d H:i:s'),
+                    $u->functionType(),
+                ], ',', '"', '');
+            }
+            fputcsv($out, [], ',', '"', '');
+            fputcsv($out, ['Total', $users->count()], ',', '"', '');
+            fclose($out);
+        }, $filename, ['Content-Type' => 'text/csv; charset=utf-8', 'Cache-Control' => 'no-store']);
+    }
+
+    /**
+     * Makes an account a lab manager for one lab, or back into a normal
+     * account. Administrators are never demoted by this and never scoped.
+     */
+    public function access(Request $request, string $slug, User $user): RedirectResponse
+    {
+        Gate::authorize('admin');
+        $labId = (int) $request->input('managed_lab_id', 0);
+        $isAdmin = $user->role === User::ROLE_ADMIN;
+
+        if ($labId > 0 && Lab::whereKey($labId)->exists()) {
+            $user->forceFill(['managed_lab_id' => $labId, 'role' => $isAdmin ? $user->role : User::ROLE_LAB_MANAGER])->save();
+            $message = "{$user->display_name} now manages ".Lab::find($labId)->title.'.';
+        } else {
+            $user->forceFill([
+                'managed_lab_id' => null,
+                'role' => ! $isAdmin && $user->role === User::ROLE_LAB_MANAGER ? User::ROLE_SUBSCRIBER : $user->role,
+            ])->save();
+            $message = "{$user->display_name} no longer manages a lab.";
+        }
+
+        return redirect()->route('admin.users.show', [$slug, $user])->with('status', $message);
+    }
+
+    /** Sets a new password and ends the account's app sessions. */
+    public function password(Request $request, string $slug, User $user, Passwords $passwords, ApiTokens $tokens): RedirectResponse
+    {
+        Gate::authorize('admin');
+        $password = (string) $request->input('password', '');
+        if (strlen($password) < 6) {
+            return back()->withErrors(['password' => 'Password must be at least 6 characters.']);
+        }
+
+        $passwords->set($user, $password);
+        $tokens->revoke($user);
+
+        return redirect()->route('admin.users.show', [$slug, $user])->with('status', 'Password changed. The app will ask this user to sign in again.');
+    }
+
+    public function destroy(Request $request, string $slug, User $user): RedirectResponse
+    {
+        Gate::authorize('admin');
+        abort_if($user->id === $request->user()->id, 403, 'You cannot delete your own account.');
+
+        $name = $user->display_name ?: $user->username;
+        $user->delete();
+
+        return redirect()->route('admin.users.index', $slug)->with('status', "{$name} was deleted, with their devices, lab accounts and notifications.");
+    }
+
+    private function type(string $slug): string
+    {
+        return self::SLUGS[$slug] ?? abort(404);
+    }
+}

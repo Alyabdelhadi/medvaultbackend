@@ -82,3 +82,7 @@ PHP is a static build with no system install; Composer runs with
   `UNREGISTERED`/`NOT_FOUND` only, never `INVALID_ARGUMENT`.
 - **Run only one poller across both stacks during migration**, or every alert goes
   out twice (the duplicate check cannot see the other database).
+- **Admin access is two gates** (`AppServiceProvider`): `admin` (role administrator)
+  and `manage-users` (admin, or a lab manager with a lab assigned). Lab scoping
+  lives in `UserDirectory::query()`, which every user list, search and export
+  goes through. Managers never see ID or insurance photos.

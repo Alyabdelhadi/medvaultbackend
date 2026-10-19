@@ -1,0 +1,98 @@
+<?php
+
+namespace App\Services\Admin;
+
+use App\Models\LabAccount;
+use App\Models\User;
+use App\Support\Mobile;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+
+/**
+ * The Patients / Doctors / Guarantors lists, from medvault_get_users_by_type().
+ *
+ * Lab scoping lives here, in the query, and not in a template: every caller
+ * is then scoped, the CSV export included. A filter that only hides rows on
+ * screen is not a boundary.
+ */
+final class UserDirectory
+{
+    public const TYPES = ['P' => 'Patient', 'D' => 'Doctor', 'G' => 'Guarantor'];
+
+    public const PLURALS = ['P' => 'Patients', 'D' => 'Doctors', 'G' => 'Guarantors'];
+
+    /** The lab a signed-in admin user is limited to, or 0 for the whole site. */
+    public static function scopeFor(User $viewer): int
+    {
+        // Administrators are never scoped, even with a lab assigned.
+        return $viewer->role === User::ROLE_ADMIN ? 0 : (int) $viewer->managed_lab_id;
+    }
+
+    /**
+     * A user belongs to a lab if it created them, if they are a doctor or
+     * guarantor attached to it, or if its API has issued them a token. The
+     * last makes the list useful on day one, before anyone is re-entered.
+     */
+    public static function inLab(Builder $query, int $labId): Builder
+    {
+        return $query->where(function (Builder $q) use ($labId) {
+            $q->where('owner_lab_id', $labId)
+                ->orWhere('dg_lab_id', $labId)
+                ->orWhereIn('id', LabAccount::select('user_id')->where('lab_id', $labId)->whereNotNull('external_token'));
+        });
+    }
+
+    public function query(string $type, User $viewer): Builder
+    {
+        $query = User::query();
+
+        // An unset type has always been a patient.
+        $type === 'P'
+            ? $query->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
+            : $query->where('function_type', $type);
+
+        $labId = self::scopeFor($viewer);
+        if ($labId > 0) {
+            self::inLab($query, $labId);
+        }
+
+        return $query->orderByDesc('created_at')->orderByDesc('id');
+    }
+
+    public function canSee(User $viewer, User $user): bool
+    {
+        $labId = self::scopeFor($viewer);
+
+        return $labId === 0 || self::inLab(User::whereKey($user->id), $labId)->exists();
+    }
+
+    /**
+     * medvault_user_matches_search(): name, username or email contain the
+     * term, or the stored number contains the term's digits. The number is
+     * compared normalised, so "76 618 326" and "+96176618326" both match.
+     */
+    public function search(Builder $query, string $term): Collection
+    {
+        $users = $query->get();
+        $term = trim($term);
+        if ($term === '') {
+            return $users;
+        }
+
+        $needle = mb_strtolower($term);
+        $digits = Mobile::normalize($term);
+
+        return $users->filter(function (User $u) use ($needle, $digits) {
+            $haystack = mb_strtolower(implode(' ', [$u->display_name, $u->username, $u->email, $u->first_name, $u->last_name]));
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+            if ($digits === '') {
+                return false;
+            }
+            $mobile = Mobile::normalize((string) $u->mobile_number);
+
+            return $mobile !== '' && str_contains($mobile, $digits);
+        })->values();
+    }
+}

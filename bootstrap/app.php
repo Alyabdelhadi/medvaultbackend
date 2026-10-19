@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['app.token' => AuthenticateAppToken::class]);
+        $middleware->redirectGuestsTo(fn () => route('admin.login'));
 
         // WordPress neither trimmed input nor turned "" into null. Both matter:
         // passwords are compared as typed, "required" means "not null", and an

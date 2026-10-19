@@ -27,8 +27,15 @@ Done:
    result-ready poller (`medvault:poll-results`, scheduled every minute, runs
    when the admin interval has passed).
 
-Next: the admin panel (labs and their API settings, content, push and result
-alerts, AI switch, lab managers, patients/doctors/guarantors with CSV export).
+6. Admin at `/admin`: labs (directory and results-API settings), sliders, banners,
+   result categories, About/FAQ, push broadcast, Firebase settings, Result Alerts
+   (settings, Run Poll Now, recent sends), AI Summary, and Patients/Doctors/
+   Guarantors with search, add, CSV export and per-user lab status. Lab managers
+   see only their own lab's people. WordPress admins sign in with their
+   existing password; `php artisan medvault:make-admin <username>` creates one.
+
+Next: cutover (staging import from a real dump, side-by-side comparison against
+the live site, the `/app/wp-json` rewrite, then switching the poller over).
 
 ## Deploying the scheduler
 
