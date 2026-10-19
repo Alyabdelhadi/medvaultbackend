@@ -530,7 +530,10 @@ final class WordPressImporter
         $settings = [
             // Default on: an install that never saved the page had it on.
             'ai_summary_enabled' => (string) ($this->option('medvault_ai_summary_enabled') ?? '1') !== '0',
-            'poll_enabled' => (bool) (int) ($this->option('medvault_poll_enabled') ?? 1),
+            // Always off after an import: WordPress may still be polling, and two
+            // pollers send every alert twice (each only sees its own log). A
+            // staging copy must never poll either: it holds real device tokens.
+            'poll_enabled' => false,
             'poll_minutes' => max(5, (int) ($this->option('medvault_poll_minutes') ?? 10)),
             'poll_batch_size' => max(1, (int) ($this->option('medvault_poll_batch_size') ?? 50)),
             'poll_cursor' => max(0, (int) ($this->option('medvault_poll_cursor') ?? 0)),
@@ -546,6 +549,10 @@ final class WordPressImporter
 
         foreach ($settings as $key => $value) {
             Setting::put($key, $value);
+        }
+
+        if ((bool) (int) ($this->option('medvault_poll_enabled') ?? 1)) {
+            $this->warn('Result polling was on in WordPress and is OFF here. Turn it on in Admin → Result Alerts only after turning it off in WordPress.');
         }
 
         $firebase = $this->nonEmpty($this->option('medvault_firebase_credentials'));

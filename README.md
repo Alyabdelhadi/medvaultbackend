@@ -34,8 +34,12 @@ Done:
    see only their own lab's people. WordPress admins sign in with their
    existing password; `php artisan medvault:make-admin <username>` creates one.
 
-Next: cutover (staging import from a real dump, side-by-side comparison against
-the live site, the `/app/wp-json` rewrite, then switching the poller over).
+7. Cutover prep: the import ran on a real dump of the live database, and staging
+   matched the live site endpoint for endpoint using real accounts. The suite also
+   passes on MySQL 8.4, the likely production engine. `medvault:doctor` checks a server
+   before go-live; `docs/DEPLOY.md` is the runbook.
+
+**Deploying:** see `docs/DEPLOY.md`.
 
 ## Deploying the scheduler
 

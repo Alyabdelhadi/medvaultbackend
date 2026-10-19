@@ -183,6 +183,7 @@ class WordPressImportTest extends TestCase
         $this->artisan('medvault:import-wordpress')
             ->expectsOutputToContain('Imported the about page as raw post_content')
             ->expectsOutputToContain('set APP_TIMEZONE=Asia/Beirut')
+            ->expectsOutputToContain('Result polling was on in WordPress and is OFF here')
             ->assertSuccessful();
 
         $this->assertSame(['First', null], DB::table('sliders')->orderBy('position')->pluck('title')->all());
@@ -194,6 +195,8 @@ class WordPressImportTest extends TestCase
         $this->assertSame(10, (int) DB::table('pages')->where('key', 'faq')->value('id'));
 
         $this->assertFalse(Setting::get('ai_summary_enabled'));
+        // Never inherited: two pollers would send every alert twice.
+        $this->assertFalse(Setting::get('poll_enabled'));
         $this->assertSame(50, Setting::get('poll_cursor'));
         $this->assertSame(25, Setting::get('poll_batch_size'));
         $this->assertSame(3, Setting::get('poll_last_run')['notified']);
