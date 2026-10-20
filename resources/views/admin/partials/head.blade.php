@@ -212,6 +212,16 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
 .mv-lightbox.single .lb-prev,.mv-lightbox.single .lb-next{display:none}
 @media (max-width:700px){.mv-lightbox figure{max-width:calc(100vw - 24px)}.lb-prev,.lb-next{top:auto;bottom:18px;transform:none}}
 
+/* Rich text editor (About, FAQ) */
+.editor-wrap .ck.ck-editor{max-width:none}
+.editor-wrap .ck-editor__editable{min-height:380px;font:15px/1.65 var(--font);color:var(--ink);padding:8px 22px!important}
+.editor-wrap .ck.ck-editor__main>.ck-editor__editable:not(.ck-focused){border-color:var(--line-strong)}
+.editor-wrap .ck.ck-toolbar{border-color:var(--line-strong);background:#f7f9fc}
+.editor-wrap .ck.ck-rounded-corners .ck.ck-editor__top .ck-sticky-panel .ck-toolbar{border-radius:var(--radius-sm) var(--radius-sm) 0 0}
+.editor-wrap .ck.ck-rounded-corners .ck.ck-editor__main>.ck-editor__editable{border-radius:0 0 var(--radius-sm) var(--radius-sm)}
+.editor-wrap .ck.ck-editor__editable.ck-focused:not(.ck-editor__nested-editable){border-color:var(--accent);box-shadow:0 0 0 3px rgba(43,169,169,.16)}
+.editor-wrap .ck-source-editing-area textarea{font:13px/1.6 ui-monospace,Menlo,monospace}
+
 /* Confirm dialog */
 .mv-dialog{border:0;border-radius:var(--radius);padding:22px 24px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--shadow-lg);color:var(--ink)}
 .mv-dialog::backdrop{background:rgba(8,18,47,.45)}
