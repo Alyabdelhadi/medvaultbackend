@@ -1,6 +1,6 @@
 {{--
     A bar chart in plain HTML. $data: label => number. $money formats the
-    total and tooltips as amounts. $tone: green | teal | navy. $wide: a full row.
+    total and tooltips as amounts. $tone: accent | sky | navy. $wide: a full row.
 --}}
 @php
     $values = array_values($data);
@@ -9,7 +9,7 @@
     // Above a bar: short, so twelve fit side by side.
     $short = fn ($v) => $v >= 1000 ? rtrim(rtrim(number_format($v / 1000, 1), '0'), '.').'k' : number_format($v, $v == (int) $v ? 0 : 1);
 @endphp
-<figure class="chart chart-{{ $tone ?? 'green' }} {{ ($wide ?? false) ? 'chart-wide' : '' }}">
+<figure class="chart chart-{{ $tone ?? 'accent' }} {{ ($wide ?? false) ? 'chart-wide' : '' }}">
     <figcaption>
         <span>{{ $title }}</span>
         <b>{{ $fmt(array_sum($values)) }}</b>

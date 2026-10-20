@@ -16,8 +16,8 @@
 @endif
 
 <div class="stats">
-    @foreach ($stats as $label => $value)
-        <div class="stat"><span class="muted">{{ $label }}</span><b>{{ number_format($value) }}</b></div>
+    @foreach ($stats as $label => [$value, $icon, $tone])
+        @include('admin.partials.stat', ['label' => $label, 'value' => number_format($value), 'icon' => $icon, 'tone' => $tone])
     @endforeach
 </div>
 
@@ -26,7 +26,7 @@
         @include('admin.partials.bar-chart', $chart)
     @endforeach
     @if ($billing)
-        @include('admin.partials.bar-chart', ['title' => 'Revenue received in '.$billing['year'], 'tone' => 'green', 'data' => $billing['revenue'], 'money' => true, 'wide' => true])
+        @include('admin.partials.bar-chart', ['title' => 'Revenue received in '.$billing['year'], 'tone' => 'accent', 'data' => $billing['revenue'], 'money' => true, 'wide' => true])
     @endif
 </div>
 

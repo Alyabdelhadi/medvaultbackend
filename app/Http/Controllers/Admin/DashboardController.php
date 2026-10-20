@@ -35,22 +35,23 @@ class DashboardController extends Controller
             ->when($scope > 0, fn ($q) => $q->where('lab_id', $scope))
             ->get(['type', 'created_at']);
 
+        // label => [value, icon, tone]
         $stats = [
-            'Patients' => $patientIds->count(),
-            'Doctors' => $directory->query('D', $me)->count(),
-            'Guarantors' => $directory->query('G', $me)->count(),
-            'Patients with the app' => Device::whereIn('user_id', $patientIds)->distinct()->count('user_id'),
-            'Result alerts this month' => AppNotification::where('type', 'result_ready')->where('created_at', '>=', now()->startOfMonth())
-                ->when($scope > 0, fn ($q) => $q->where('lab_id', $scope))->count(),
+            'Patients' => [$patientIds->count(), 'patients', 'accent'],
+            'Doctors' => [$directory->query('D', $me)->count(), 'doctors', 'sky'],
+            'Guarantors' => [$directory->query('G', $me)->count(), 'guarantors', 'navy'],
+            'Patients with the app' => [Device::whereIn('user_id', $patientIds)->distinct()->count('user_id'), 'phone', 'accent'],
+            'Result alerts this month' => [AppNotification::where('type', 'result_ready')->where('created_at', '>=', now()->startOfMonth())
+                ->when($scope > 0, fn ($q) => $q->where('lab_id', $scope))->count(), 'bell', 'sky'],
         ];
         if ($scope === 0) {
-            $stats['Published labs'] = Lab::published()->count();
+            $stats['Published labs'] = [Lab::published()->count(), 'lab', 'navy'];
         }
 
         $charts = [
-            ['title' => 'New patients, last 12 months', 'tone' => 'green',
+            ['title' => 'New patients, last 12 months', 'tone' => 'accent',
                 'data' => AdminStats::lastMonths((clone $patients)->where('created_at', '>=', $since)->get(['created_at']), 'created_at')],
-            ['title' => 'Result alerts sent', 'tone' => 'teal',
+            ['title' => 'Result alerts sent', 'tone' => 'sky',
                 'data' => AdminStats::lastMonths($notifications->where('type', 'result_ready'), 'created_at')],
             ['title' => $scope > 0 ? 'Messages from the lab' : 'Messages from the admin', 'tone' => 'navy',
                 'data' => AdminStats::lastMonths($notifications->where('type', LabMessenger::TYPE), 'created_at')],

@@ -27,13 +27,14 @@
 @endif
 
 <div class="stats" style="margin-top:18px">
-    @foreach ($summary as $label => $value)
-        <div class="stat"><span class="muted">{{ $label }}</span><b>{{ $label === 'Labs on a plan' ? $value : $money($value) }}</b></div>
+    @php $icons = [['wallet', 'accent'], ['check', 'sky'], ['calendar', 'navy'], ['lab', 'accent']]; @endphp
+    @foreach (array_values($summary) as $i => $value)
+        @include('admin.partials.stat', ['label' => array_keys($summary)[$i], 'value' => $i === 3 ? $value : $money($value), 'icon' => $icons[$i][0], 'tone' => $icons[$i][1]])
     @endforeach
 </div>
 
 <div class="charts charts-wide">
-    @include('admin.partials.bar-chart', ['title' => "Revenue received in {$year}, by month", 'tone' => 'green', 'data' => $revenue, 'money' => true])
+    @include('admin.partials.bar-chart', ['title' => "Revenue received in {$year}, by month", 'tone' => 'accent', 'data' => $revenue, 'money' => true])
 </div>
 
 <h2>Labs</h2>

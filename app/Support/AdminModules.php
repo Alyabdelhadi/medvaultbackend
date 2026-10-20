@@ -27,6 +27,9 @@ final class AdminModules
         'push' => ['view', 'create'],
     ];
 
+    /** Sections the sidebar folds into one expandable item. */
+    public const FOLDED = ['Settings'];
+
     public static function sections(): array
     {
         return [
@@ -38,23 +41,19 @@ final class AdminModules
                 'doctors' => ['label' => 'Doctors', 'icon' => 'doctors', 'route' => ['admin.users.index', 'doctors'], 'active' => 'admin/doctors*', 'actions' => self::ACTIONS],
                 'guarantors' => ['label' => 'Guarantors', 'icon' => 'guarantors', 'route' => ['admin.users.index', 'guarantors'], 'active' => 'admin/guarantors*', 'actions' => self::ACTIONS],
             ],
-            'Notifications' => [
-                'push' => ['label' => 'Send Notification', 'icon' => 'send', 'route' => ['admin.push.index'], 'active' => 'admin.push.index', 'actions' => ['view', 'create']],
-                'alerts' => ['label' => 'Result Alerts', 'icon' => 'bell', 'route' => ['admin.alerts.show'], 'active' => 'admin.alerts.*', 'actions' => ['view', 'edit'], 'site_wide' => true],
-                'firebase' => ['label' => 'Firebase Settings', 'icon' => 'flame', 'route' => ['admin.push.firebase'], 'active' => 'admin.push.firebase*', 'actions' => ['view', 'edit'], 'site_wide' => true],
-                'ai' => ['label' => 'AI Summary', 'icon' => 'sparkle', 'route' => ['admin.ai.show'], 'active' => 'admin.ai.*', 'actions' => ['view', 'edit'], 'site_wide' => true],
-            ],
-            'Directory' => [
+            'Manage' => [
                 'labs' => ['label' => 'Labs', 'icon' => 'lab', 'route' => ['admin.labs.index'], 'active' => 'admin.labs.*', 'actions' => self::ACTIONS, 'site_wide' => true],
+                'push' => ['label' => 'Send Notification', 'icon' => 'send', 'route' => ['admin.push.index'], 'active' => 'admin.push.index', 'actions' => ['view', 'create']],
+                'accounting' => ['label' => 'Accounting', 'icon' => 'wallet', 'route' => ['admin.accounting.index'], 'active' => 'admin.accounting.*', 'actions' => self::ACTIONS, 'site_wide' => true, 'badge' => 'billing_due'],
+            ],
+            'Settings' => [
                 'sliders' => ['label' => 'Slider Images', 'icon' => 'image', 'route' => ['admin.images.index', 'sliders'], 'active' => 'admin/sliders*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'banners' => ['label' => 'Banner Images', 'icon' => 'banner', 'route' => ['admin.images.index', 'banners'], 'active' => 'admin/banners*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'categories' => ['label' => 'Result Categories', 'icon' => 'tag', 'route' => ['admin.categories.edit'], 'active' => 'admin.categories.*', 'actions' => ['view', 'edit'], 'site_wide' => true],
                 'pages' => ['label' => 'About & FAQ', 'icon' => 'info', 'route' => ['admin.pages.edit', 'about'], 'active' => 'admin/pages/*', 'actions' => ['view', 'edit'], 'site_wide' => true],
-            ],
-            'Finance' => [
-                'accounting' => ['label' => 'Accounting', 'icon' => 'wallet', 'route' => ['admin.accounting.index'], 'active' => 'admin.accounting.*', 'actions' => self::ACTIONS, 'site_wide' => true, 'badge' => 'billing_due'],
-            ],
-            'Administration' => [
+                'alerts' => ['label' => 'Result Alerts', 'icon' => 'bell', 'route' => ['admin.alerts.show'], 'active' => 'admin.alerts.*', 'actions' => ['view', 'edit'], 'site_wide' => true],
+                'firebase' => ['label' => 'Firebase Settings', 'icon' => 'flame', 'route' => ['admin.push.firebase'], 'active' => 'admin.push.firebase*', 'actions' => ['view', 'edit'], 'site_wide' => true],
+                'ai' => ['label' => 'AI Summary', 'icon' => 'sparkle', 'route' => ['admin.ai.show'], 'active' => 'admin.ai.*', 'actions' => ['view', 'edit'], 'site_wide' => true],
                 'staff' => ['label' => 'Admin Accounts', 'icon' => 'key', 'route' => ['admin.staff.index'], 'active' => 'admin.staff.*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'groups' => ['label' => 'Groups & Permissions', 'icon' => 'shield', 'route' => ['admin.groups.index'], 'active' => 'admin.groups.*', 'actions' => self::ACTIONS, 'site_wide' => true],
             ],
