@@ -90,7 +90,8 @@ class UsersAdminTest extends AdminTestCase
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
         $this->assertStringContainsString("Name,Username,Email,Mobile,\"Registration Date\",Type\n", $csv);
         $this->assertStringContainsString("\"Nour Al Hariri\",nour,,'+96170918679,\"2026-01-10 09:00:00\",P\n", $csv);
-        $this->assertStringEndsWith("\nTotal,2\n", $csv);
+        // The administrator is an admin account, not a patient.
+        $this->assertStringEndsWith("\nTotal,1\n", $csv);
         $this->assertStringContainsString('medvault-patients-', $response->headers->get('Content-Disposition'));
     }
 
@@ -107,6 +108,8 @@ class UsersAdminTest extends AdminTestCase
 
         $this->delete("/admin/patients/{$patient->id}")->assertRedirect('/admin/patients');
         $this->assertNull(User::find($patient->id));
-        $this->delete("/admin/patients/{$admin->id}")->assertForbidden();
+        // Admin accounts are not reachable from these pages at all.
+        $this->delete("/admin/patients/{$admin->id}")->assertNotFound();
+        $this->assertNotNull($admin->fresh());
     }
 }

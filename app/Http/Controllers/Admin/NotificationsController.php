@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AiSummary;
 use App\Models\AppNotification;
+use App\Models\Lab;
+use App\Models\PushMessage;
 use App\Models\Setting;
-use App\Services\Notifications\Fcm;
+use App\Services\Admin\UserDirectory;
+use App\Services\Notifications\LabMessenger;
 use App\Services\Notifications\ResultPoller;
 use App\Support\WordPress\Sanitize;
 use Illuminate\Http\RedirectResponse;
@@ -17,13 +20,24 @@ use Throwable;
 /** Send Notification, Firebase Settings, Result Alerts and AI Summary. */
 class NotificationsController extends Controller
 {
-    public function push(): View
+    public function push(Request $request, UserDirectory $directory): View
     {
-        return view('admin.push.send');
+        $me = $request->user();
+        $scope = UserDirectory::scopeFor($me);
+
+        return view('admin.push.send', [
+            'scope' => $scope,
+            'scopeLab' => $scope > 0 ? Lab::find($scope) : null,
+            'labs' => Lab::published()->orderBy('title')->pluck('title', 'id'),
+            'patients' => $directory->patients($me)->reorder('display_name')->get(['id', 'display_name', 'username', 'mobile_number']),
+            'history' => PushMessage::with(['sender:id,display_name,username', 'lab:id,title'])
+                ->when($scope > 0, fn ($q) => $q->where('lab_id', $scope))
+                ->latest('id')->limit(15)->get(),
+        ]);
     }
 
-    /** A broadcast to every install subscribed to the "medvault" topic. */
-    public function send(Request $request, Fcm $fcm): RedirectResponse
+    /** To every install (the "medvault" topic), one lab's patients, or one patient. */
+    public function send(Request $request, LabMessenger $messenger): RedirectResponse
     {
         $title = Sanitize::textField($request->input('title', ''));
         $body = trim(Sanitize::stripAllTags((string) $request->input('body', '')));
@@ -31,7 +45,14 @@ class NotificationsController extends Controller
             return back()->withInput()->with(['status' => 'Title and message are required.', 'status_type' => 'error']);
         }
 
-        $result = $fcm->sendToTopic($title, $body);
+        $result = $messenger->send(
+            $request->user(),
+            (string) $request->input('audience', 'all'),
+            (int) $request->input('lab_id', 0),
+            (int) $request->input('user_id', 0),
+            $title,
+            $body,
+        );
 
         return $result['success']
             ? redirect()->route('admin.push.index')->with('status', $result['message'])

@@ -57,20 +57,22 @@ class DevicesAndListTest extends NotificationsTestCase
     {
         [$user, $token] = $this->signedIn();
         $other = User::factory()->create();
+        $ids = [];
         foreach ([['2026-10-01 09:00:00', false], ['2026-10-03 21:05:00', false], ['2026-10-02 10:00:00', true]] as $i => [$at, $read]) {
-            AppNotification::create(['user_id' => $user->id, 'title' => "T{$i}", 'body' => "B{$i}", 'type' => 'result_ready', 'lab_id' => 5, 'request_nb' => (string) (100 + $i), 'is_read' => $read, 'created_at' => $at]);
+            // Ids from the rows, not assumed: MySQL does not reset auto-increment between tests.
+            $ids[] = AppNotification::create(['user_id' => $user->id, 'title' => "T{$i}", 'body' => "B{$i}", 'type' => 'result_ready', 'lab_id' => 5, 'request_nb' => (string) (100 + $i), 'is_read' => $read, 'created_at' => $at])->id;
         }
         AppNotification::create(['user_id' => $other->id, 'title' => 'x', 'body' => 'x', 'created_at' => now()]);
 
         $this->getJson(self::API.'/notifications', $this->bearer($token))->assertOk()
             ->assertJsonPath('count', 3)->assertJsonPath('unread_count', 2)
             ->assertJsonPath('data.0', [
-                'id' => 2, 'title' => 'T1', 'body' => 'B1', 'type' => 'result_ready', 'lab_id' => 5, 'request_nb' => '101',
+                'id' => $ids[1], 'title' => 'T1', 'body' => 'B1', 'type' => 'result_ready', 'lab_id' => 5, 'request_nb' => '101',
                 'is_read' => false, 'created_at' => '2026-10-03 21:05:00', 'date' => 'Oct 3, 2026 • 9:05 PM',
             ])
             ->assertJsonPath('data.2.request_nb', '100');
 
-        $this->getJson(self::API.'/notifications?per_page=1&page=2', $this->bearer($token))->assertJsonPath('data.0.id', 3)->assertJsonCount(1, 'data');
+        $this->getJson(self::API.'/notifications?per_page=1&page=2', $this->bearer($token))->assertJsonPath('data.0.id', $ids[2])->assertJsonCount(1, 'data');
         $this->getJson(self::API.'/notifications?per_page=500', $this->bearer($token))->assertJsonCount(3, 'data');
     }
 

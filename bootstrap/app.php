@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateAppToken;
+use App\Http\Middleware\RequireAdminPermission;
 use App\Http\WpError;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -27,7 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['app.token' => AuthenticateAppToken::class]);
+        $middleware->alias(['app.token' => AuthenticateAppToken::class, 'perm' => RequireAdminPermission::class]);
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
 
         // WordPress neither trimmed input nor turned "" into null. Both matter:

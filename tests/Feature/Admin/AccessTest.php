@@ -60,7 +60,9 @@ class AccessTest extends AdminTestCase
         foreach (['/admin/dashboard', '/admin/labs', '/admin/labs?status=trash', '/admin/labs/create', "/admin/labs/{$lab->id}/edit",
             '/admin/sliders', '/admin/banners', '/admin/result-categories', '/admin/pages/about', '/admin/pages/faq',
             '/admin/push', '/admin/push/firebase', '/admin/result-alerts', '/admin/ai-summary',
-            '/admin/patients', '/admin/doctors', '/admin/guarantors', '/admin/patients/new', "/admin/patients/{$patient->id}"] as $path) {
+            '/admin/patients', '/admin/doctors', '/admin/guarantors', '/admin/patients/new', "/admin/patients/{$patient->id}",
+            '/admin/accounting', "/admin/accounting/labs/{$lab->id}", "/admin/accounting/labs/{$lab->id}/plan", "/admin/accounting/labs/{$lab->id}/payments/new",
+            '/admin/accounts', '/admin/accounts/new', '/admin/groups', '/admin/groups/new'] as $path) {
             $this->get($path)->assertOk();
         }
     }
@@ -78,7 +80,10 @@ class AccessTest extends AdminTestCase
         $other = User::factory()->create(['display_name' => 'Verdun Patient', 'owner_lab_id' => 5]);
         $this->actingAs($this->manager(9));
 
-        $this->get('/admin')->assertRedirect('/admin/patients');
+        // An imported manager keeps the plugin's pages, plus a dashboard and
+        // notifications for its own lab.
+        $this->get('/admin')->assertRedirect('/admin/dashboard');
+        $this->get('/admin/dashboard')->assertOk()->assertSee('Bekaa Hospital');
         $page = $this->get('/admin/patients')->assertOk()->assertSee('Owned Patient')->assertSee('Token Patient')
             ->assertDontSee('Verdun Patient')->assertDontSee('Refused At Bekaa')->assertDontSee('Labs</a>', false);
         $this->get('/admin/doctors')->assertSee('Bekaa Doctor');
@@ -90,29 +95,10 @@ class AccessTest extends AdminTestCase
         $this->get("/admin/patients/{$other->id}")->assertNotFound();
         $this->get("/admin/patients/{$tokened->id}")->assertOk()->assertDontSee('secret-id.jpg');
 
-        foreach (['/admin/dashboard', '/admin/labs', '/admin/sliders', '/admin/push', '/admin/result-alerts'] as $path) {
+        foreach (['/admin/labs', '/admin/sliders', '/admin/result-alerts', '/admin/accounting', '/admin/accounts', '/admin/groups', '/admin/push/firebase'] as $path) {
             $this->get($path)->assertForbidden();
         }
         $this->post("/admin/patients/{$owned->id}/password", ['password' => 'hijacked'])->assertForbidden();
-        $this->post("/admin/patients/{$owned->id}/access", ['managed_lab_id' => 5])->assertForbidden();
         $this->delete("/admin/patients/{$owned->id}")->assertForbidden();
-    }
-
-    public function test_assigning_a_lab_switches_the_role_and_never_demotes_an_admin(): void
-    {
-        $this->lab(9, 'Bekaa Hospital');
-        $admin = $this->admin();
-        $staff = User::factory()->create(['display_name' => 'Staff']);
-        $this->actingAs($admin);
-
-        $this->post("/admin/patients/{$staff->id}/access", ['managed_lab_id' => 9])->assertRedirect();
-        $this->assertSame([User::ROLE_LAB_MANAGER, 9], [$staff->refresh()->role, $staff->managed_lab_id]);
-        $this->post("/admin/patients/{$staff->id}/access", ['managed_lab_id' => 0]);
-        $this->assertSame([User::ROLE_SUBSCRIBER, null], [$staff->refresh()->role, $staff->managed_lab_id]);
-
-        $this->post("/admin/patients/{$admin->id}/access", ['managed_lab_id' => 9]);
-        $this->assertSame([User::ROLE_ADMIN, 9], [$admin->refresh()->role, $admin->managed_lab_id]);
-        // Still unscoped.
-        $this->get('/admin/labs')->assertOk();
     }
 }

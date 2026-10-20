@@ -1,7 +1,13 @@
 @extends('admin.layout')
 @section('title', $meta['title'].' page')
 @section('content')
-<h1>{{ $meta['title'] }} page</h1>
+<div class="page-head">
+    <h1>{{ $meta['title'] }} page</h1>
+    <div class="segmented">
+        <a class="btn small {{ $key === 'about' ? '' : 'secondary' }}" href="{{ route('admin.pages.edit', 'about') }}">About</a>
+        <a class="btn small {{ $key === 'faq' ? '' : 'secondary' }}" href="{{ route('admin.pages.edit', 'faq') }}">FAQ</a>
+    </div>
+</div>
 @if ($errors->any())<div class="notice error">{{ $errors->first() }}</div>@endif
 <form method="post" action="{{ route('admin.pages.update', $key) }}" class="card">
     @csrf @method('put')

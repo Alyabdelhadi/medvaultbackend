@@ -14,12 +14,12 @@
         ] as $label => $value)
             <tr><th style="width:220px">{{ $label }}</th><td>{{ $value ?: '—' }}</td></tr>
         @endforeach
-        {{-- Identity documents stay with administrators: lab managers never had a per-user page in WordPress. --}}
-        @can('admin')
+        {{-- Identity documents stay with site-wide accounts: a lab's own account never sees them. --}}
+        @if (\App\Services\Admin\UserDirectory::scopeFor(auth()->user()) === 0)
         @foreach (['Profile picture' => $user->profile_pic, 'National ID' => $user->id_image, 'Insurance card' => $user->insurance_image] as $label => $url)
             <tr><th>{{ $label }}</th><td>@if ($url)<a href="{{ $url }}" target="_blank" rel="noopener"><img src="{{ $url }}" alt="" style="max-width:220px;max-height:150px;border-radius:6px;border:1px solid var(--line)"></a>@else — @endif</td></tr>
         @endforeach
-        @endcan
+        @endif
     </table>
     </div>
 </div>
@@ -46,19 +46,7 @@
 </div>
 <p class="muted">{{ $devices->count() }} device(s) registered for push notifications.</p>
 
-@can('admin')
-    <h2>MedVault lab access</h2>
-    <form method="post" action="{{ route('admin.users.access', [$slug, $user]) }}" class="card" style="max-width:680px">
-        @csrf
-        <label for="managed_lab_id">Manages lab</label>
-        <select id="managed_lab_id" name="managed_lab_id">
-            <option value="0">— none (normal account) —</option>
-            @foreach ($labs as $id => $title)<option value="{{ $id }}" @selected($user->managed_lab_id === $id)>{{ $title }}</option>@endforeach
-        </select>
-        <p class="hint">Assigning a lab makes this account a <strong>Lab Manager</strong>: it can sign in here and see and add that lab's patients, doctors and guarantors, and nothing else. Setting it back to none returns it to a normal account. Administrators are never limited by this.</p>
-        <div class="actions"><button class="btn" type="submit">Save access</button></div>
-    </form>
-
+@can('perm', [$slug, 'edit'])
     <h2>Password</h2>
     <form method="post" action="{{ route('admin.users.password', [$slug, $user]) }}" class="card" style="max-width:680px">
         @csrf
@@ -67,7 +55,9 @@
         <p class="hint">The app will ask the user to sign in again.</p>
         <div class="actions"><button class="btn secondary" type="submit">Set password</button></div>
     </form>
+@endcan
 
+@can('perm', [$slug, 'delete'])
     @if ($user->id !== auth()->id())
         <form method="post" action="{{ route('admin.users.destroy', [$slug, $user]) }}" onsubmit="return confirm('Permanently delete this account, its devices, lab accounts and notifications?')">
             @csrf @method('delete')

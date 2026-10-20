@@ -8,14 +8,14 @@ use App\Services\Accounts\Passwords;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
 /**
  * Admin sign-in by username or email, like wp-login.php. Imported WordPress
- * passwords work and are upgraded on the way in. Only administrators and
- * assigned lab managers get a session; everyone else is told the same thing
- * as for a wrong password.
+ * passwords work and are upgraded on the way in. Only accounts that can open
+ * at least one admin page get a session (administrators, and accounts whose
+ * group grants a page); everyone else is told the same thing as for a wrong
+ * password.
  */
 class AuthController extends Controller
 {
@@ -34,7 +34,7 @@ class AuthController extends Controller
 
         $allowed = $user !== null
             && $passwords->check($user, (string) $request->input('password'))
-            && Gate::forUser($user)->any(['admin', 'manage-users']);
+            && $user->hasAdminAccess();
 
         if (! $allowed) {
             return back()->withInput($request->only('login'))->withErrors(['login' => 'Incorrect username or password.']);
@@ -55,11 +55,12 @@ class AuthController extends Controller
         return redirect()->route('admin.login');
     }
 
-    /** Administrators land on the dashboard; a lab manager on their own patients. */
-    public function home(): RedirectResponse
+    /** The first page this account may open: the dashboard, for most. */
+    public function home(Request $request): RedirectResponse
     {
-        return Gate::allows('admin')
-            ? redirect()->route('admin.dashboard')
-            : redirect()->route('admin.users.index', 'patients');
+        $route = $request->user()->firstAdminRoute();
+        abort_if($route === null, 403, 'This account has no access to the admin.');
+
+        return redirect()->route($route[0], array_slice($route, 1));
     }
 }

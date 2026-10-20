@@ -22,13 +22,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // The admin. Administrators get every page. A lab manager gets the
-        // patient, doctor and guarantor lists for their own lab and nothing
-        // else, and only once a lab is assigned: in WordPress an unassigned
-        // manager was unscoped and saw every lab's patients.
-        Gate::define('admin', fn (User $user) => $user->role === User::ROLE_ADMIN);
-        Gate::define('manage-users', fn (User $user) => $user->role === User::ROLE_ADMIN
-            || ($user->role === User::ROLE_LAB_MANAGER && (int) $user->managed_lab_id > 0));
+        // The admin. Administrators get every page; everyone else gets what
+        // their group grants, per page and action (App\Support\AdminModules).
+        // Used as `can:perm,labs,edit` on routes and @can('perm', ...) in views.
+        Gate::define('perm', fn (User $user, string $module, string $action = 'view') => $user->canAdmin($module, $action));
 
         // Anonymous photo uploads. Sign-up sends at most three; this is the
         // ceiling on a script filling the disk from one address.

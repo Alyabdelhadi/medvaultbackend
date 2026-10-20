@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Lab extends Model
 {
@@ -30,5 +32,15 @@ class Lab extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', 'publish');
+    }
+
+    public function plan(): HasOne
+    {
+        return $this->hasOne(LabPlan::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(LabPayment::class);
     }
 }

@@ -82,7 +82,25 @@ PHP is a static build with no system install; Composer runs with
   `UNREGISTERED`/`NOT_FOUND` only, never `INVALID_ARGUMENT`.
 - **Run only one poller across both stacks during migration**, or every alert goes
   out twice (the duplicate check cannot see the other database).
-- **Admin access is two gates** (`AppServiceProvider`): `admin` (role administrator)
-  and `manage-users` (admin, or a lab manager with a lab assigned). Lab scoping
-  lives in `UserDirectory::query()`, which every user list, search and export
-  goes through. Managers never see ID or insurance photos.
+- **Admin access is per page and action** (`App\Support\AdminModules`, one
+  registry for the sidebar, the group form and every route's `perm:<page>,<action>`).
+  Administrators pass everything; other accounts get their group's ticks
+  (`User::canAdmin()`). A **lab group** (`for_labs`) account needs `managed_lab_id`
+  or gets nothing, and can never hold a `site_wide` page, whatever is stored.
+  An imported `lab_manager` with no group gets `LAB_MANAGER_DEFAULTS`.
+  Nobody grants what they lack: `GroupController::fill()` keeps other ticks as
+  they were, and `StaffController` only offers groups whose ticks you hold and
+  lets only administrators touch administrators.
+- **Lab scoping lives in `UserDirectory`**: lists, search, export, `canSee()`
+  (which also guards password reset and delete), the dashboard counts and
+  `LabMessenger`'s recipients. Admin accounts are excluded from those lists
+  (`withoutStaff()`), so a Patients permission cannot reach an administrator.
+  Lab accounts never see ID or insurance photos.
+- **`LabMessenger` decides the audience from the sender**, not the form: a lab
+  account always sends to its own lab. Lab-wide sends write every in-app row
+  in one insert and push after the response (`dispatch()->afterResponse()`),
+  since one FCM call per device would outrun `max_execution_time`.
+- **Accounting**: one `lab_plans` row per lab; recording a payment with
+  "advance" moves `next_due_on` one period with `addMonthNoOverflow` (Jan 31 →
+  Feb 28). A plan inside `remind_days` of its due date, or past it, shows on
+  Accounting, the dashboard and as the sidebar badge. Amounts are USD.

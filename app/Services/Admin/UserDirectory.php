@@ -42,6 +42,17 @@ final class UserDirectory
         });
     }
 
+    public static function withoutStaff(Builder $query): Builder
+    {
+        return $query->whereNotIn('role', [User::ROLE_ADMIN, User::ROLE_LAB_MANAGER])->whereNull('admin_group_id');
+    }
+
+    /** Patients (function type P or unset) visible to $viewer. */
+    public function patients(User $viewer): Builder
+    {
+        return $this->query('P', $viewer);
+    }
+
     public function query(string $type, User $viewer): Builder
     {
         $query = User::query();
@@ -51,6 +62,9 @@ final class UserDirectory
             ? $query->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
             : $query->where('function_type', $type);
 
+        // Admin accounts are listed under Admin Accounts, not with the app's users.
+        self::withoutStaff($query);
+
         $labId = self::scopeFor($viewer);
         if ($labId > 0) {
             self::inLab($query, $labId);
@@ -59,11 +73,17 @@ final class UserDirectory
         return $query->orderByDesc('created_at')->orderByDesc('id');
     }
 
+    /**
+     * Whether $viewer may open, change or delete $user from these pages.
+     * Admin accounts never: they are managed under Admin Accounts, so a
+     * Patients permission cannot reset an administrator's password.
+     */
     public function canSee(User $viewer, User $user): bool
     {
+        $query = self::withoutStaff(User::whereKey($user->id));
         $labId = self::scopeFor($viewer);
 
-        return $labId === 0 || self::inLab(User::whereKey($user->id), $labId)->exists();
+        return ($labId === 0 ? $query : self::inLab($query, $labId))->exists();
     }
 
     /**

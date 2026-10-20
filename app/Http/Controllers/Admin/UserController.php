@@ -13,7 +13,6 @@ use App\Services\Admin\UserDirectory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -139,34 +138,10 @@ class UserController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=utf-8', 'Cache-Control' => 'no-store']);
     }
 
-    /**
-     * Makes an account a lab manager for one lab, or back into a normal
-     * account. Administrators are never demoted by this and never scoped.
-     */
-    public function access(Request $request, string $slug, User $user): RedirectResponse
-    {
-        Gate::authorize('admin');
-        $labId = (int) $request->input('managed_lab_id', 0);
-        $isAdmin = $user->role === User::ROLE_ADMIN;
-
-        if ($labId > 0 && Lab::whereKey($labId)->exists()) {
-            $user->forceFill(['managed_lab_id' => $labId, 'role' => $isAdmin ? $user->role : User::ROLE_LAB_MANAGER])->save();
-            $message = "{$user->display_name} now manages ".Lab::find($labId)->title.'.';
-        } else {
-            $user->forceFill([
-                'managed_lab_id' => null,
-                'role' => ! $isAdmin && $user->role === User::ROLE_LAB_MANAGER ? User::ROLE_SUBSCRIBER : $user->role,
-            ])->save();
-            $message = "{$user->display_name} no longer manages a lab.";
-        }
-
-        return redirect()->route('admin.users.show', [$slug, $user])->with('status', $message);
-    }
-
     /** Sets a new password and ends the account's app sessions. */
     public function password(Request $request, string $slug, User $user, Passwords $passwords, ApiTokens $tokens): RedirectResponse
     {
-        Gate::authorize('admin');
+        abort_unless($this->directory->canSee($request->user(), $user), 404);
         $password = (string) $request->input('password', '');
         if (strlen($password) < 6) {
             return back()->withErrors(['password' => 'Password must be at least 6 characters.']);
@@ -180,7 +155,7 @@ class UserController extends Controller
 
     public function destroy(Request $request, string $slug, User $user): RedirectResponse
     {
-        Gate::authorize('admin');
+        abort_unless($this->directory->canSee($request->user(), $user), 404);
         abort_if($user->id === $request->user()->id, 403, 'You cannot delete your own account.');
 
         $name = $user->display_name ?: $user->username;
