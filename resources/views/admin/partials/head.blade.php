@@ -93,7 +93,7 @@ th{background:#f7f9fc;font-size:11.5px;font-weight:600;text-transform:uppercase;
 tbody tr:hover td{background:#fafcfe}
 label{font-weight:500;display:block;margin:14px 0 6px;color:var(--ink)}
 .hint{color:var(--muted);font-size:12.5px;margin:4px 0 0;font-weight:400}
-input[type=text],input[type=url],input[type=email],input[type=number],input[type=password],input[type=date],input[type=search],select,textarea{width:100%;max-width:640px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);font:inherit;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
+input[type=text],input[type=url],input[type=email],input[type=number],input[type=password],input[type=date],input[type=search],input[type=tel],select,textarea{width:100%;max-width:640px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);font:inherit;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(43,169,169,.16)}
 textarea{min-height:100px}input[type=number]{max-width:140px}
 input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;height:16px}
@@ -132,6 +132,11 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
 .pill-navy{background:var(--sky-50);color:var(--navy)}
 .mv-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#e8a317;color:#1c1300;font-size:11px;font-weight:600;display:inline-grid;place-items:center}
 .mv-nav a span{flex:1}
+
+.phone-field{display:flex;gap:8px;max-width:640px}
+.phone-field select{width:auto;max-width:230px;flex:none}
+.phone-field input{flex:1;min-width:0}
+@media (max-width:520px){.phone-field select{max-width:150px}}
 
 /* Charts */
 .charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-top:18px}

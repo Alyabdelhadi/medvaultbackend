@@ -16,8 +16,15 @@
     <label for="last_name">Last name *</label>
     <input id="last_name" name="last_name" type="text" value="{{ old('last_name') }}" required>{!! $err('last_name') !!}
     <label for="mobile_number">Mobile number *</label>
-    <input id="mobile_number" name="mobile_number" type="text" value="{{ old('mobile_number') }}" required>
-    <p class="hint">Any format works: <code>70536332</code>, <code>+96170536332</code>, <code>+97470536332</code>. A number without a country code is read as Lebanese.</p>{!! $err('mobile_number') !!}
+    <div class="phone-field">
+        <select name="mobile_cc" aria-label="Country">
+            @foreach (\App\Support\Countries::LIST as [$flag, $dial, $country])
+                <option value="{{ $dial }}" @selected(old('mobile_cc', '961') === $dial)>{{ $flag }} {{ $country }} +{{ $dial }}</option>
+            @endforeach
+        </select>
+        <input id="mobile_number" name="mobile_number" type="tel" inputmode="tel" value="{{ old('mobile_number') }}" placeholder="70 123 456" required>
+    </div>
+    <p class="hint">Choose the country, then type the number without its country code, for example <code>70536332</code> or <code>03123456</code> for Lebanon.</p>{!! $err('mobile_number') !!}
     <label for="password">Password *</label>
     <input id="password" name="password" type="text" autocomplete="new-password" required>
     <p class="hint">At least 6 characters. Shown so you can pass it on; it is not sent to the user.</p>{!! $err('password') !!}

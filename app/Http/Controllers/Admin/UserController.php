@@ -10,6 +10,7 @@ use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
 use App\Services\Admin\AdminUserCreator;
 use App\Services\Admin\UserDirectory;
+use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -73,6 +74,7 @@ class UserController extends Controller
     {
         $this->type($slug);
         $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'username', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id', 'owner_lab_id']);
+        $input['mobile_number'] = self::withCountry((string) $request->input('mobile_cc', ''), (string) ($input['mobile_number'] ?? ''));
 
         // A lab manager's accounts belong to their lab, whatever the form says:
         // the lab field is a plain number in the markup.
@@ -162,6 +164,23 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('admin.users.index', $slug)->with('status', "{$name} was deleted, with their devices, lab accounts and notifications.");
+    }
+
+    /**
+     * The form's country picker plus the number typed beside it, as one
+     * international number. A number typed with its own "+" or "00" keeps
+     * it: whoever typed it meant that country.
+     */
+    public static function withCountry(string $cc, string $number): string
+    {
+        $number = trim($number);
+        $digits = preg_replace('/\D/', '', $number);
+        if ($digits === '' || ! in_array($cc, Countries::codes(), true)
+            || str_starts_with($number, '+') || str_starts_with($digits, '00')) {
+            return $number;
+        }
+
+        return '+'.$cc.$digits;
     }
 
     private function type(string $slug): string

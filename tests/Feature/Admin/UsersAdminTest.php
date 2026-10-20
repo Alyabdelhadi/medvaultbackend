@@ -5,6 +5,8 @@ namespace Tests\Feature\Admin;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
+use App\Support\Countries;
+use App\Support\Mobile;
 
 class UsersAdminTest extends AdminTestCase
 {
@@ -111,5 +113,35 @@ class UsersAdminTest extends AdminTestCase
         // Admin accounts are not reachable from these pages at all.
         $this->delete("/admin/patients/{$admin->id}")->assertNotFound();
         $this->assertNotNull($admin->fresh());
+    }
+
+    public function test_the_country_picker_builds_the_international_number(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->get('/admin/patients/new')->assertOk()->assertSee('<option value="961" selected>', false)->assertSee('Qatar +974');
+
+        $this->post('/admin/patients', $this->newPatient(['mobile_cc' => '974', 'mobile_number' => '7053 6332']))->assertRedirect();
+        $qatar = User::firstWhere('mobile_e164', '97470536332');
+        $this->assertSame('+97470536332', $qatar?->mobile_number);
+
+        // Lebanon with the trunk zero, as patients write 03 numbers.
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Ali', 'mobile_cc' => '961', 'mobile_number' => '03 123 456']))->assertRedirect();
+        $this->assertSame('9613123456', User::firstWhere('first_name', 'Ali')->mobile_e164);
+
+        // A number typed with its own country code keeps it.
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Sara', 'mobile_cc' => '961', 'mobile_number' => '+971 50 123 4567']))->assertRedirect();
+        $this->assertSame('971501234567', User::firstWhere('first_name', 'Sara')->mobile_e164);
+
+        // The same number again, typed differently, is still a duplicate.
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Dup', 'mobile_cc' => '974', 'mobile_number' => '70536332']))
+            ->assertSessionHasErrors(['mobile_number' => 'This mobile number is already registered.']);
+    }
+
+    public function test_every_country_in_the_picker_is_one_the_parser_knows(): void
+    {
+        foreach (Countries::codes() as $cc) {
+            $this->assertSame($cc, Mobile::split('+'.$cc.'12345678')['cc'], "+{$cc} would be read as another country");
+        }
     }
 }
