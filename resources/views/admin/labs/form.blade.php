@@ -122,14 +122,14 @@
         <p class="hint">Each summary is a billed API call. Off by default, and off everywhere while the global switch on the AI Summary page is off.</p>
     </div>
 
-    <div class="actions">
+    <div class="actions sticky-actions">
         <button class="btn" type="submit">{{ $lab->exists ? 'Update Lab' : 'Create Lab' }}</button>
-        <a href="{{ route('admin.labs.index') }}">Cancel</a>
+        <a class="btn secondary" href="{{ route('admin.labs.index') }}">Cancel</a>
     </div>
 </form>
 
 @if ($lab->exists)
-    <form method="post" action="{{ $lab->status === 'trash' ? route('admin.labs.restore', $lab) : route('admin.labs.trash', $lab) }}" onsubmit="return {{ $lab->status === 'trash' ? 'true' : "confirm('Move this lab to the trash?')" }}">
+    <form method="post" action="{{ $lab->status === 'trash' ? route('admin.labs.restore', $lab) : route('admin.labs.trash', $lab) }}" @if ($lab->status !== 'trash') data-confirm="Move this lab to the trash? It disappears from the app." data-confirm-action="Move to trash" @endif>
         @csrf
         <button class="btn {{ $lab->status === 'trash' ? 'secondary' : 'danger' }} small" type="submit">{{ $lab->status === 'trash' ? 'Restore' : 'Move to Trash' }}</button>
     </form>

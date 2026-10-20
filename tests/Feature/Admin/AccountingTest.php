@@ -68,7 +68,7 @@ class AccountingTest extends AdminTestCase
         $this->actingAs($this->admin());
         $this->get('/admin/accounting')->assertOk()->assertSee('Overdue by 9 day(s)')->assertSee('Due in 5 day(s)')
             ->assertSee('<span class="mv-badge" title="Payments due">2</span>', false);
-        $this->get('/admin/dashboard')->assertSee('Payments due:')->assertSee('Verdun Medical Center');
+        $this->get('/admin/dashboard')->assertSee('Payments due')->assertSee('Overdue by 9 day(s)')->assertSee('Verdun Medical Center');
 
         LabPlan::firstWhere('lab_id', 5)->update(['active' => false]);
         $this->assertSame([9], LabPlan::needingAttention()->pluck('lab_id')->all());

@@ -64,7 +64,7 @@
             </div>
         </div>
     @endif
-    <div class="actions"><button class="btn" type="submit">{{ $account->exists ? 'Save' : 'Create account' }}</button><a class="btn secondary" href="{{ route('admin.staff.index') }}">Cancel</a></div>
+    <div class="actions sticky-actions"><button class="btn" type="submit">{{ $account->exists ? 'Save' : 'Create account' }}</button><a class="btn secondary" href="{{ route('admin.staff.index') }}">Cancel</a></div>
 </form>
 <script>
 (function () {

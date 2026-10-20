@@ -4,18 +4,12 @@
 <h1>{{ $lab ? $lab->title : 'Dashboard' }}</h1>
 
 @if ($billing && $billing['due']->isNotEmpty())
-    <div class="notice warning">
-        <div>
-            <strong>Payments due:</strong>
-            @foreach ($billing['due'] as $plan)
-                <a href="{{ route('admin.accounting.show', $plan->lab_id) }}">{{ $plan->lab?->title }}</a>
-                ({{ $plan->state() === 'overdue' ? 'overdue since' : 'due' }} {{ $plan->next_due_on->format('M j') }}){{ $loop->last ? '' : ',' }}
-            @endforeach
-        </div>
-    </div>
+    <h2 style="margin-top:0">Payments due</h2>
+    @include('admin.accounting.reminders', ['due' => $billing['due']])
+    <div style="height:18px"></div>
 @endif
 
-<div class="stats">
+<div class="stats stats-3 {{ count($stats) === 6 ? 'stats-6' : '' }}">
     @foreach ($stats as $label => [$value, $icon, $tone])
         @include('admin.partials.stat', ['label' => $label, 'value' => number_format($value), 'icon' => $icon, 'tone' => $tone])
     @endforeach

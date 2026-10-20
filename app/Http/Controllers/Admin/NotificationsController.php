@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AiSummary;
 use App\Models\AppNotification;
+use App\Models\Device;
 use App\Models\Lab;
 use App\Models\PushMessage;
 use App\Models\Setting;
+use App\Models\User;
 use App\Services\Admin\UserDirectory;
 use App\Services\Notifications\LabMessenger;
 use App\Services\Notifications\ResultPoller;
@@ -25,7 +27,26 @@ class NotificationsController extends Controller
         $me = $request->user();
         $scope = UserDirectory::scopeFor($me);
 
+        // Who each choice reaches, shown before sending: patients, and how
+        // many of them have a phone registered for push.
+        $reach = function ($patients) {
+            $ids = $patients->pluck('id');
+
+            return [$ids->count(), Device::whereIn('user_id', $ids)->distinct()->count('user_id')];
+        };
+        $labIds = $scope > 0 ? [$scope] : Lab::published()->pluck('id')->all();
+        $reachByLab = [];
+        foreach ($labIds as $labId) {
+            $reachByLab[$labId] = $reach(UserDirectory::inLab(UserDirectory::withoutStaff(
+                User::where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
+            ), $labId));
+        }
+
         return view('admin.push.send', [
+            'reach' => [
+                'all' => $scope > 0 ? null : Device::distinct()->count('user_id'),
+                'labs' => $reachByLab,
+            ],
             'scope' => $scope,
             'scopeLab' => $scope > 0 ? Lab::find($scope) : null,
             'labs' => Lab::published()->orderBy('title')->pluck('title', 'id'),

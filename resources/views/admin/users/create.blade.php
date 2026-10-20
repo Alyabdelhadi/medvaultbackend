@@ -6,7 +6,7 @@
     @csrf
     @include('admin.users.fields', ['person' => null])
     <p class="hint" style="margin-top:14px">The account is created here only. No lab login is attempted and no SMS is sent: the lab token is issued the first time the user signs in.</p>
-    <div class="actions">
+    <div class="actions sticky-actions">
         <button class="btn" type="submit">Add</button>
         <a class="btn secondary" href="{{ route('admin.users.index', $slug) }}">Cancel</a>
     </div>

@@ -26,8 +26,8 @@ class PermissionsTest extends AdminTestCase
         $this->actingAs($this->member($this->group('Directory editors', ['labs' => ['view']])));
 
         $this->get('/admin')->assertRedirect('/admin/labs');
-        $this->get('/admin/labs')->assertOk()->assertSee('<span>Labs</span>', false)
-            ->assertDontSee('<span>Accounting</span>', false)->assertDontSee('<span>Patients</span>', false);
+        $this->get('/admin/labs')->assertOk()->assertSee('<span class="mv-label">Labs</span>', false)
+            ->assertDontSee('<span class="mv-label">Accounting</span>', false)->assertDontSee('<span class="mv-label">Patients</span>', false);
         $this->get("/admin/labs/{$lab->id}/edit")->assertOk();
         $this->put("/admin/labs/{$lab->id}", ['title' => 'Renamed'])->assertForbidden();
         $this->get('/admin/labs/create')->assertForbidden();

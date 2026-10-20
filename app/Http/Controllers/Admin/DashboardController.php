@@ -49,11 +49,12 @@ class DashboardController extends Controller
         }
 
         $charts = [
-            ['title' => 'New patients, last 12 months', 'tone' => 'accent',
+            ['title' => 'New patients, last 12 months', 'tone' => 'accent', 'empty' => 'No new patients in the last 12 months.',
                 'data' => AdminStats::lastMonths((clone $patients)->where('created_at', '>=', $since)->get(['created_at']), 'created_at')],
-            ['title' => 'Result alerts sent', 'tone' => 'sky',
+            ['title' => 'Result alerts sent', 'tone' => 'sky', 'empty' => 'No result alerts in the last 12 months.',
                 'data' => AdminStats::lastMonths($notifications->where('type', 'result_ready'), 'created_at')],
-            ['title' => $scope > 0 ? 'Messages from the lab' : 'Messages from the admin', 'tone' => 'navy',
+            ['title' => $scope > 0 ? 'Messages from the lab' : 'Messages from the admin', 'tone' => 'navy', 'empty' => 'No messages sent yet.',
+                'emptyLink' => $me->canAdmin('push', 'create') ? ['Send a notification', route('admin.push.index')] : null,
                 'data' => AdminStats::lastMonths($notifications->where('type', LabMessenger::TYPE), 'created_at')],
         ];
 

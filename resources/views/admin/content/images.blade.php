@@ -43,7 +43,7 @@
             </td>
             <td class="actions" style="margin:0">
                 <a class="btn secondary small" href="{{ route('admin.images.index', [$kind, 'edit' => $item->id]) }}">Edit</a>
-                <form method="post" action="{{ route('admin.images.destroy', [$kind, $item->id]) }}" onsubmit="return confirm('Delete this {{ strtolower($meta['singular']) }}?')">@csrf @method('delete')<button class="btn danger small">Delete</button></form>
+                <form method="post" action="{{ route('admin.images.destroy', [$kind, $item->id]) }}" data-confirm="Delete this {{ strtolower($meta['singular']) }}?">@csrf @method('delete')<button class="btn danger small">Delete</button></form>
             </td>
         </tr>
     @empty

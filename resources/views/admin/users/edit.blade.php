@@ -7,7 +7,7 @@
 <form method="post" action="{{ route('admin.users.update', [$slug, $user]) }}" class="card" style="max-width:820px">
     @csrf @method('put')
     @include('admin.users.fields', ['person' => $user, 'type' => $user->functionType()])
-    <div class="actions">
+    <div class="actions sticky-actions">
         <button class="btn" type="submit">Save</button>
         <a class="btn secondary" href="{{ route('admin.users.show', [$slug, $user]) }}">Cancel</a>
     </div>

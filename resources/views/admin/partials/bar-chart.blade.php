@@ -1,6 +1,7 @@
 {{--
     A bar chart in plain HTML. $data: label => number. $money formats the
     total and tooltips as amounts. $tone: accent | sky | navy. $wide: a full row.
+    $empty: what to say when every value is 0; $emptyLink: [label, url].
 --}}
 @php
     $values = array_values($data);
@@ -14,6 +15,13 @@
         <span>{{ $title }}</span>
         <b>{{ $fmt(array_sum($values)) }}</b>
     </figcaption>
+    @if (array_sum($values) == 0)
+        <div class="chart-empty">
+            @include('admin.partials.icon', ['name' => 'chart'])
+            <span>{{ $empty ?? 'Nothing yet for this period.' }}</span>
+            @if (isset($emptyLink))<a class="btn small secondary" href="{{ $emptyLink[1] }}">{{ $emptyLink[0] }}</a>@endif
+        </div>
+    @else
     <div class="chart-bars" role="img" aria-label="{{ $title }}">
         @foreach ($data as $label => $value)
             <div class="chart-col" title="{{ $label }}: {{ $fmt($value) }}">
@@ -23,4 +31,5 @@
             </div>
         @endforeach
     </div>
+    @endif
 </figure>

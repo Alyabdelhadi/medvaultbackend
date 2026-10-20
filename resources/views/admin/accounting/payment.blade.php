@@ -41,6 +41,6 @@
         <label class="check" style="margin-top:14px"><input type="checkbox" name="advance" value="1" @checked(old('advance', true))>
             Move the next due date from {{ $plan->next_due_on->format('M j, Y') }} to {{ $plan->advance($plan->next_due_on)->format('M j, Y') }}</label>
     @endif
-    <div class="actions"><button class="btn" type="submit">Record payment</button><a class="btn secondary" href="{{ route('admin.accounting.show', $lab) }}">Cancel</a></div>
+    <div class="actions sticky-actions"><button class="btn" type="submit">Record payment</button><a class="btn secondary" href="{{ route('admin.accounting.show', $lab) }}">Cancel</a></div>
 </form>
 @endsection

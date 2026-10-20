@@ -44,7 +44,7 @@
 
 <h2>Payments</h2>
 <div class="table-wrap">
-<table>
+<table class="cards">
     <thead><tr><th>Paid on</th><th>Amount</th><th>Covers</th><th>Method</th><th>Reference</th><th>Recorded by</th><th></th></tr></thead>
     <tbody>
     @forelse ($payments as $p)
@@ -55,9 +55,9 @@
             <td>{{ \App\Models\LabPayment::METHODS[$p->method] ?? '—' }}</td>
             <td>{{ $p->reference ?: '—' }}@if ($p->notes)<br><span class="muted">{{ $p->notes }}</span>@endif</td>
             <td>{{ $p->recorder?->display_name ?: $p->recorder?->username ?: '—' }}</td>
-            <td style="text-align:right">
+            <td class="card-actions" style="text-align:right">
                 @can('perm', ['accounting', 'delete'])
-                    <form method="post" action="{{ route('admin.accounting.payment.destroy', $p) }}" onsubmit="return confirm('Delete this payment?')">
+                    <form method="post" action="{{ route('admin.accounting.payment.destroy', $p) }}" data-confirm="Delete this payment?">
                         @csrf @method('delete')
                         <button class="btn small secondary" type="submit">Delete</button>
                     </form>

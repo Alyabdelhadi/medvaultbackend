@@ -38,6 +38,6 @@
     <label for="notes">Notes</label>
     <textarea id="notes" name="notes">{{ old('notes', $plan->notes) }}</textarea>
     <label class="check" style="margin-top:14px"><input type="checkbox" name="active" value="1" @checked(old('active', $plan->active ?? true))> Active (paused plans get no reminders and do not count in expected revenue)</label>
-    <div class="actions"><button class="btn" type="submit">Save plan</button><a class="btn secondary" href="{{ route('admin.accounting.show', $lab) }}">Cancel</a></div>
+    <div class="actions sticky-actions"><button class="btn" type="submit">Save plan</button><a class="btn secondary" href="{{ route('admin.accounting.show', $lab) }}">Cancel</a></div>
 </form>
 @endsection

@@ -1,71 +1,119 @@
 @extends('admin.layout')
 @section('title', $user->display_name ?: $user->username)
 @section('content')
-<div class="page-head">
-    <h1>{{ $user->display_name ?: $user->username }}</h1>
-    @can('perm', [$slug, 'edit'])<a class="btn" href="{{ route('admin.users.edit', [$slug, $user]) }}">Edit</a>@endcan
-</div>
+@php
+    $name = $user->display_name ?: $user->username;
+    $initials = collect(preg_split('/\s+/', trim($name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('');
+    $siteWide = \App\Services\Admin\UserDirectory::scopeFor(auth()->user()) === 0;
+    $maxRefusals = (int) config('medvault.labs.max_auth_failures');
+@endphp
 @if ($errors->any())<div class="notice error">{{ $errors->first() }}</div>@endif
+
 <div class="card">
-    <div class="table-wrap" style="border:0">
-    <table>
-        @foreach ([
-            'Username' => $user->username, 'Type' => \App\Services\Admin\UserDirectory::TYPES[$user->functionType()] ?? $user->functionType(),
-            'Mobile number' => $user->mobile_number, 'Email' => $user->email, 'Date of birth' => $user->dob, 'Gender' => $user->gender,
-            'Blood type' => $user->blood_type, 'Registered' => $user->created_at?->format('F j, Y g:i a'), 'Role' => $user->role,
-            'Signed in to the app' => $user->api_token_hash ? 'Yes' : 'No',
-        ] as $label => $value)
-            <tr><th style="width:220px">{{ $label }}</th><td>{{ $value ?: '—' }}</td></tr>
-        @endforeach
-        {{-- Identity documents stay with site-wide accounts: a lab's own account never sees them. --}}
-        @if (\App\Services\Admin\UserDirectory::scopeFor(auth()->user()) === 0)
-        @foreach (['Profile picture' => $user->profile_pic, 'National ID' => $user->id_image, 'Insurance card' => $user->insurance_image] as $label => $url)
-            <tr><th>{{ $label }}</th><td>@if ($url)<a href="{{ $url }}" target="_blank" rel="noopener"><img src="{{ $url }}" alt="" style="max-width:220px;max-height:150px;border-radius:6px;border:1px solid var(--line)"></a>@else — @endif</td></tr>
-        @endforeach
-        @endif
-    </table>
+    <div class="page-head" style="margin:0">
+        <div class="person-head">
+            @if ($siteWide && $user->profile_pic)
+                <img class="person-avatar" src="{{ $user->profile_pic }}" alt="">
+            @else
+                <span class="person-avatar">{{ $initials ?: '?' }}</span>
+            @endif
+            <div>
+                <h1>{{ $name }}</h1>
+                <div class="person-meta">
+                    <span class="pill">{{ \App\Services\Admin\UserDirectory::TYPES[$user->functionType()] ?? 'Patient' }}</span>
+                    <span>{{ $user->mobile_number ?: 'No mobile number' }}</span>
+                    @if ($user->email)<span>{{ $user->email }}</span>@endif
+                </div>
+            </div>
+        </div>
+        @can('perm', [$slug, 'edit'])<a class="btn" href="{{ route('admin.users.edit', [$slug, $user]) }}">Edit</a>@endcan
     </div>
 </div>
 
-<h2>Labs</h2>
+<div class="card">
+    <h2 style="margin-top:0">Details</h2>
+    <dl class="details">
+        @foreach ([
+            'Username' => $user->username,
+            'Date of birth' => $user->dob ? \Illuminate\Support\Carbon::parse($user->dob)->format('M j, Y') : null,
+            'Gender' => $user->gender ? ucfirst($user->gender) : null,
+            'Blood type' => $user->blood_type,
+            'Registered' => $user->created_at?->format('M j, Y'),
+            'Uses the app' => $user->api_token_hash ? 'Yes, signed in' : 'Not signed in',
+            'Phones for notifications' => $devices->count() ?: 'None',
+        ] as $label => $value)
+            <div><dt>{{ $label }}</dt><dd>{{ $value ?: '—' }}</dd></div>
+        @endforeach
+    </dl>
+</div>
+
+{{-- Identity documents stay with site-wide accounts: a lab's own account never sees them. --}}
+@if ($siteWide && ($user->id_image || $user->insurance_image))
+    <div class="card">
+        <h2 style="margin-top:0">Documents</h2>
+        <div class="docs">
+            @foreach (['National ID' => $user->id_image, 'Insurance card' => $user->insurance_image] as $label => $url)
+                @if ($url)<figure><figcaption>{{ $label }}</figcaption><a href="{{ $url }}" target="_blank" rel="noopener"><img src="{{ $url }}" alt="{{ $label }}"></a></figure>@endif
+            @endforeach
+        </div>
+    </div>
+@endif
+
+<h2>Lab results</h2>
 <div class="table-wrap">
-<table>
-    <thead><tr><th>Lab</th><th>Lab token</th><th>Refusals</th><th>Last poll</th><th>Alerts</th><th>Poll error</th></tr></thead>
+<table class="cards">
+    <thead><tr><th>Lab</th><th>Connection</th><th>Last checked</th><th>Result alerts</th></tr></thead>
     <tbody>
     @forelse ($accounts as $a)
         <tr>
-            <td>{{ $a->lab_id === 0 ? 'Legacy Verdun account' : ($labNames[$a->lab_id] ?? '#'.$a->lab_id) }}</td>
-            <td>{{ $a->getRawOriginal('external_token') ? 'Issued' : '—' }}</td>
-            <td>{{ $a->auth_failures }}{{ $a->auth_failures >= config('medvault.labs.max_auth_failures') ? ' (no longer asked)' : '' }}</td>
-            <td>{{ $a->polled_at?->format('Y-m-d H:i') ?? '—' }}</td>
-            <td>{{ $a->seen_status === null ? 'Not seeded yet' : count($a->seen_status).' order(s) tracked' }}</td>
-            <td>{{ $a->poll_error ?: '—' }}</td>
+            <td class="card-title">{{ $a->lab_id === 0 ? 'Verdun Medical Center (original)' : ($labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id) }}</td>
+            <td>
+                @if ($a->auth_failures >= $maxRefusals)
+                    <span class="status status-paused">Not known to this lab</span>
+                @elseif ($a->getRawOriginal('external_token'))
+                    <span class="status status-ok">Connected</span>
+                @else
+                    <span class="status status-due">Not connected yet</span>
+                @endif
+                @if ($a->poll_error)<span class="cell-sub">Last check failed: {{ \Illuminate\Support\Str::limit($a->poll_error, 80) }}</span>@endif
+            </td>
+            <td>{{ $a->polled_at ? $a->polled_at->diffForHumans() : 'Not yet' }}</td>
+            <td>{{ $a->seen_status === null ? 'Start at the next check' : 'Watching '.count($a->seen_status).' order(s)' }}</td>
         </tr>
     @empty
-        <tr><td colspan="6" class="muted">No lab has issued this account a token yet. That is normal until the user signs in, and permanent for a number no lab knows.</td></tr>
+        <tr><td colspan="4" class="muted">No lab is connected yet. That is normal until this person signs in to the app; a number no lab recognises stays this way.</td></tr>
     @endforelse
     </tbody>
 </table>
 </div>
-<p class="muted">{{ $devices->count() }} device(s) registered for push notifications.</p>
 
-@can('perm', [$slug, 'edit'])
-    <h2>Password</h2>
-    <form method="post" action="{{ route('admin.users.password', [$slug, $user]) }}" class="card" style="max-width:680px">
-        @csrf
-        <label for="password">New password</label>
-        <input id="password" name="password" type="text" autocomplete="new-password" minlength="6" required>
-        <p class="hint">The app will ask the user to sign in again.</p>
-        <div class="actions"><button class="btn secondary" type="submit">Set password</button></div>
-    </form>
-@endcan
-
-@can('perm', [$slug, 'delete'])
-    @if ($user->id !== auth()->id())
-        <form method="post" action="{{ route('admin.users.destroy', [$slug, $user]) }}" onsubmit="return confirm('Permanently delete this account, its devices, lab accounts and notifications?')">
-            @csrf @method('delete')
-            <button class="btn danger small" type="submit">Delete account</button>
-        </form>
-    @endif
-@endcan
+@if (auth()->user()->canAdmin($slug, 'edit') || (auth()->user()->canAdmin($slug, 'delete') && $user->id !== auth()->id()))
+    <div class="card danger-zone" style="margin-top:28px">
+        <h2>Danger zone</h2>
+        <div class="split">
+            @can('perm', [$slug, 'edit'])
+                <form method="post" action="{{ route('admin.users.password', [$slug, $user]) }}">
+                    @csrf
+                    <label for="password" style="margin-top:0">Set a new password</label>
+                    <div class="phone-field">
+                        <input id="password" name="password" type="text" autocomplete="new-password" minlength="6" required>
+                        <button class="btn secondary" type="submit">Set password</button>
+                    </div>
+                    <p class="hint">The app signs this person out and asks for the new password.</p>
+                </form>
+            @endcan
+            @can('perm', [$slug, 'delete'])
+                @if ($user->id !== auth()->id())
+                    <form method="post" action="{{ route('admin.users.destroy', [$slug, $user]) }}"
+                          data-confirm="Delete {{ $name }}?" data-confirm-detail="Their account, phones, lab connections and notifications are removed for good." data-confirm-action="Delete account">
+                        @csrf @method('delete')
+                        <label style="margin-top:0">Delete this account</label>
+                        <p class="hint" style="margin:0 0 10px">Removes the account, its phones, lab connections and notifications. This cannot be undone.</p>
+                        <button class="btn danger" type="submit">Delete account</button>
+                    </form>
+                @endif
+            @endcan
+        </div>
+    </div>
+@endif
 @endsection

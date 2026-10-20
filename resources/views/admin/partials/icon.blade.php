@@ -24,6 +24,8 @@
         'phone' => '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/>',
         'check' => '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
         'calendar' => '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+        'close' => '<path d="M18 6 6 18M6 6l12 12"/>',
+        'chart' => '<path d="M3 3v18h18"/><path d="M7 15v2M11 11v6M15 7v10M19 12v5"/>',
         'menu' => '<path d="M4 6h16M4 12h16M4 18h16"/>',
     ];
 @endphp

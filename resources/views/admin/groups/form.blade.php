@@ -68,7 +68,7 @@
         </div>
     </div>
     <p class="hint">Any tick on a page also gives View.</p>
-    <div class="actions"><button class="btn" type="submit">Save group</button><a class="btn secondary" href="{{ route('admin.groups.index') }}">Cancel</a></div>
+    <div class="actions sticky-actions"><button class="btn" type="submit">Save group</button><a class="btn secondary" href="{{ route('admin.groups.index') }}">Cancel</a></div>
 </form>
 <script>
 (function () {
