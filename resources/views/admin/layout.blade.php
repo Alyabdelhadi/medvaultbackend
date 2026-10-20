@@ -37,10 +37,10 @@
         @foreach (\App\Support\AdminModules::sections() as $section => $modules)
             @php $visible = array_filter($modules, fn ($m, $key) => $me->canAdmin($key), ARRAY_FILTER_USE_BOTH); @endphp
             @continue (! $visible)
-            @if (in_array($section, \App\Support\AdminModules::FOLDED, true))
+            @if (isset(\App\Support\AdminModules::FOLDED[$section]))
                 @php $open = collect($visible)->contains(fn ($m) => $isOn($m['active'])); @endphp
                 <details class="mv-fold" @if ($open) open @endif>
-                    <summary @class(['on' => $open])>@include('admin.partials.icon', ['name' => 'settings'])<span class="mv-label">{{ $section }}</span>@include('admin.partials.icon', ['name' => 'chevron'])</summary>
+                    <summary @class(['on' => $open])>@include('admin.partials.icon', ['name' => \App\Support\AdminModules::FOLDED[$section]])<span class="mv-label">{{ $section }}</span>@include('admin.partials.icon', ['name' => 'chevron'])</summary>
                     <div class="mv-fold-items">
                         @foreach ($visible as $key => $module)
                             <a href="{{ route($module['route'][0], array_slice($module['route'], 1)) }}" @class(['on' => $isOn($module['active'])])>{{ $module['label'] }}</a>

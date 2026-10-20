@@ -48,7 +48,7 @@ a{color:var(--teal)}a:hover{color:var(--navy)}
 .mv-nav a .icon{color:#8592b3;transition:color .15s}
 .mv-nav a:hover{background:rgba(255,255,255,.06);color:#fff}.mv-nav a:hover .icon{color:#fff}
 .mv-nav a.on{background:rgba(255,255,255,.1);color:#fff}.mv-nav a.on .icon{color:#fff}
-.mv-fold{margin:12px 0 2px}
+.mv-fold{margin:2px 0}.mv-fold:first-of-type{margin-top:14px}
 .mv-fold summary{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:var(--radius-sm);color:#c3cbe0;font-weight:500;cursor:pointer;list-style:none;transition:background .15s,color .15s}
 .mv-fold summary::-webkit-details-marker{display:none}
 .mv-fold summary .icon{color:#8592b3}
