@@ -8,6 +8,16 @@ return [
     */
     'site_url' => rtrim(env('WP_SITE_URL', env('APP_URL', 'http://localhost')), '/'),
 
+    /*
+    | The WordPress database being replaced (the 'wordpress' connection). Read
+    | through config, never env(): env() returns null once config is cached,
+    | which every deploy does.
+    */
+    'wordpress' => [
+        'prefix' => env('WP_DB_PREFIX', 'wp_'),
+        'site_url' => env('WP_SITE_URL'),
+    ],
+
     // get_permalink() for a lab. The live site uses PATHINFO permalinks, hence
     // the index.php segment.
     'lab_permalink' => env('MEDVAULT_LAB_PERMALINK', '{site}/index.php/labs/{slug}/'),

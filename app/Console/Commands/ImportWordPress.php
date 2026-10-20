@@ -26,8 +26,8 @@ class ImportWordPress extends Command
             return self::SUCCESS;
         }
 
-        $prefix = (string) ($this->option('prefix') ?: env('WP_DB_PREFIX', 'wp_'));
-        $siteUrl = $this->option('site-url') ?: env('WP_SITE_URL');
+        $prefix = (string) ($this->option('prefix') ?: config('medvault.wordpress.prefix', 'wp_'));
+        $siteUrl = $this->option('site-url') ?: config('medvault.wordpress.site_url');
 
         $this->components->info("Reading WordPress tables {$prefix}* from the 'wordpress' connection.");
 

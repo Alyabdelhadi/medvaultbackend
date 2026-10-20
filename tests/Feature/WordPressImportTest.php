@@ -239,6 +239,32 @@ class WordPressImportTest extends TestCase
         $this->assertSame(4, User::count());
     }
 
+    public function test_the_table_prefix_comes_from_config_so_a_cached_config_keeps_it(): void
+    {
+        // env() is null once config is cached; a wrong prefix must fail loudly.
+        config(['medvault.wordpress.prefix' => 'WSw_']);
+        $this->artisan('medvault:import-wordpress')->assertFailed();
+        $this->artisan('medvault:polling --wordpress')->assertFailed();
+
+        config(['medvault.wordpress.prefix' => 'wp_']);
+        $this->artisan('medvault:import-wordpress')->assertSuccessful();
+    }
+
+    public function test_polling_reports_wordpress_and_sets_this_server(): void
+    {
+        // Absent means WordPress's default: on.
+        $this->artisan('medvault:polling --wordpress')->expectsOutput('1')->assertSuccessful();
+
+        DB::connection('wordpress')->table('wp_options')->insert(['option_name' => 'medvault_poll_enabled', 'option_value' => '0']);
+        $this->artisan('medvault:polling --wordpress')->expectsOutput('0')->assertSuccessful();
+
+        $this->artisan('medvault:polling on')->expectsOutput('Here:      on')->expectsOutput('WordPress: off')->assertSuccessful();
+        $this->assertTrue(Setting::get('poll_enabled'));
+        $this->artisan('medvault:polling off')->assertSuccessful();
+        $this->assertFalse(Setting::get('poll_enabled'));
+        $this->artisan('medvault:polling maybe')->assertFailed();
+    }
+
     // ── Fixture ─────────────────────────────────────────────────────────────
 
     private function buildWordPressSchema(): void

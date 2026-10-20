@@ -24,6 +24,8 @@ BEGIN="# BEGIN MedVault Laravel"
 END="# END MedVault Laravel"
 step() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 fail() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+# set -e stops silently; say where, so the log is never just a heading.
+trap 'printf "\033[1;31mERROR: line %s failed: %s\033[0m\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 . "$(dirname "$0")/find-php.sh"
 find_php || fail "Set PHP=/path/to/php (a CLI PHP 8.3+) and rerun."
 cd "$APP"
@@ -36,36 +38,38 @@ remove_block() {
     file_put_contents($file, $s);
   ' "$HTACCESS" "$BEGIN" "$END"
 }
-polling() { "$PHP" artisan tinker --execute="App\\Models\\Setting::put('poll_enabled', $1);" >/dev/null; }
+polling() { "$PHP" artisan medvault:polling "$1" >/dev/null; }
 
 if [ "${1:-}" = "--rollback" ]; then
   step "Rolling back"
   cp "$HTACCESS" "$HOME/htaccess-app-$(date +%Y%m%d_%H%M%S).bak"
   remove_block
-  polling false
+  polling off
   echo "WordPress serves everything again, and polling is off here."
   echo "Now turn polling back ON in WordPress: Push Notifications → Result Alerts."
   exit 0
 fi
 
-step "Preconditions"
 [ -f "$WP/medvault.php" ] || fail "Run deploy/install.sh first."
+
+step "Bringing the install up to date"
+# The cron command pulls the code before running this; dependencies, schema
+# and caches follow it here, first, so the checks below run on the new code
+# and not on a config cached by an older one.
+"$PHP" -d allow_url_fopen=1 -d memory_limit=-1 composer.phar install --no-dev --optimize-autoloader --no-interaction --no-progress
+"$PHP" artisan migrate --force
+"$PHP" artisan config:cache >/dev/null && "$PHP" artisan route:cache >/dev/null && "$PHP" artisan view:cache >/dev/null
+echo "Code at $(git rev-parse --short HEAD)."
+
+step "Preconditions"
 "$PHP" artisan medvault:doctor >/dev/null || fail "medvault:doctor reports problems. Run it to see them."
 # Two pollers send every alert twice. WordPress's own setting decides.
-WP_POLLING="$("$PHP" artisan tinker --execute='echo (int) (DB::connection("wordpress")->table(env("WP_DB_PREFIX", "wp_")."options")->where("option_name", "medvault_poll_enabled")->value("option_value") ?? 1);' 2>/dev/null | tail -1)"
+WP_POLLING="$("$PHP" artisan medvault:polling --wordpress | tail -1)" || fail "Cannot read WordPress's polling setting (see above)."
 [ "$WP_POLLING" = "0" ] || fail "Result polling is still ON in WordPress. Untick it (Push Notifications → Result Alerts → Save), then rerun."
 echo "WordPress polling is off. Patients get no result alerts until the last step."
 if grep -qF "$BEGIN" "$HTACCESS"; then
   fail "The routing block is already in $HTACCESS. To redo the switch: bash deploy/switch.sh --rollback first."
 fi
-
-step "Bringing the install up to date"
-# The cron command pulls the code before running this; dependencies, schema
-# and caches follow it here.
-"$PHP" -d allow_url_fopen=1 -d memory_limit=-1 composer.phar install --no-dev --optimize-autoloader --no-interaction --no-progress
-"$PHP" artisan migrate --force
-"$PHP" artisan config:cache >/dev/null && "$PHP" artisan route:cache >/dev/null && "$PHP" artisan view:cache >/dev/null
-echo "Code at $(git rev-parse --short HEAD)."
 
 step "Backups"
 bash deploy/backup.sh
@@ -104,7 +108,7 @@ if [ "$ok" != 1 ]; then
 fi
 
 step "Result polling on here"
-polling true
+polling on
 "$PHP" artisan medvault:poll-results --force || true
 
 cat <<EOF

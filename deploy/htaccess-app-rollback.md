@@ -7,7 +7,7 @@ Then, in this order:
 
 1. Admin (Laravel, while still reachable via a local hosts entry or before
    deleting the block) → Result Alerts → untick **Polling enabled**, or run
-   `php artisan tinker --execute='App\Models\Setting::put("poll_enabled", false);'`.
+   `php artisan medvault:polling off`.
 2. WordPress → Push Notifications → Result Alerts → tick **Polling enabled**.
 
 Anything that changed in Laravel meanwhile (new sign-ups, password changes,
