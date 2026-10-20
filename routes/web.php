@@ -90,6 +90,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{slug}', [UserController::class, 'store'])->middleware('perm:slug,create')->name('users.store');
             Route::get('{slug}/export', [UserController::class, 'export'])->middleware('perm:slug')->name('users.export');
             Route::get('{slug}/{user}', [UserController::class, 'show'])->whereNumber('user')->middleware('perm:slug')->name('users.show');
+            Route::get('{slug}/{user}/edit', [UserController::class, 'edit'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.edit');
+            Route::put('{slug}/{user}', [UserController::class, 'update'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.update');
             Route::post('{slug}/{user}/password', [UserController::class, 'password'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.password');
             Route::delete('{slug}/{user}', [UserController::class, 'destroy'])->whereNumber('user')->middleware('perm:slug,delete')->name('users.destroy');
         });

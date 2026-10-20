@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\AdminGroup;
+use App\Models\LabAccount;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
@@ -143,5 +145,60 @@ class UsersAdminTest extends AdminTestCase
         foreach (Countries::codes() as $cc) {
             $this->assertSame($cc, Mobile::split('+'.$cc.'12345678')['cc'], "+{$cc} would be read as another country");
         }
+    }
+
+    public function test_editing_a_person_keeps_the_rules_and_resets_labs_only_on_a_new_number(): void
+    {
+        $this->lab(9, 'Bekaa Hospital');
+        $this->actingAs($this->admin());
+        $this->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $rana = User::firstWhere('first_name', 'Rana');
+        $other = User::factory()->create(['email' => 'taken@x.test', 'mobile_number' => '+96170111222', 'mobile_e164' => '96170111222']);
+        LabAccount::create(['user_id' => $rana->id, 'lab_id' => 9, 'external_token' => 't', 'seen_status' => ['1' => 'V']]);
+
+        $this->get('/admin/patients')->assertSee("/admin/patients/{$rana->id}/edit");
+        $this->get("/admin/patients/{$rana->id}/edit")->assertOk()->assertSee('value="3123456"', false)->assertSee('<option value="961" selected>', false);
+
+        // Same number typed another way: the stored spelling and the lab tokens stay.
+        $this->put("/admin/patients/{$rana->id}", [...$this->newPatient(['first_name' => 'Rana Maria', 'mobile_cc' => '961', 'mobile_number' => '3123456', 'blood_type' => 'AB-', 'password' => '']), 'dg_lab_id' => 9])
+            ->assertRedirect("/admin/patients/{$rana->id}");
+        $rana->refresh();
+        $this->assertSame(['Rana Maria Haddad', 'AB-', '03 123 456', null], [$rana->display_name, $rana->blood_type, $rana->mobile_number, $rana->dg_lab_id]);
+        $this->assertTrue(app(Passwords::class)->check($rana, 'secret12'));
+        $this->assertSame(1, $rana->labAccounts()->count());
+
+        // Someone else's email or number is refused.
+        $this->put("/admin/patients/{$rana->id}", $this->newPatient(['email' => 'taken@x.test', 'mobile_cc' => '961', 'mobile_number' => '70111222']))
+            ->assertSessionHasErrors(['email', 'mobile_number']);
+
+        // A new number drops the lab accounts, so labs are asked again; a new password is set.
+        $this->put("/admin/patients/{$rana->id}", $this->newPatient(['mobile_cc' => '974', 'mobile_number' => '70536332', 'password' => 'newpass1']))
+            ->assertSessionHas('status', fn ($s) => str_contains($s, 'labs will be asked again'));
+        $rana->refresh();
+        $this->assertSame(['97470536332', '+97470536332', 0], [$rana->mobile_e164, $rana->mobile_number, $rana->labAccounts()->count()]);
+        $this->assertTrue(app(Passwords::class)->check($rana, 'newpass1'));
+
+        // Changing the type moves them to the other list.
+        $this->put("/admin/patients/{$rana->id}", $this->newPatient(['function_type' => 'D', 'mobile_cc' => '974', 'mobile_number' => '70536332', 'dg_lab_id' => 9]))
+            ->assertRedirect("/admin/doctors/{$rana->id}");
+        $this->assertSame(['D', 9], [$rana->refresh()->function_type, $rana->dg_lab_id]);
+    }
+
+    public function test_a_lab_account_edits_only_its_own_people_and_cannot_move_them(): void
+    {
+        $this->lab(9, 'Bekaa Hospital');
+        $this->lab(5, 'Verdun Medical Center');
+        $group = AdminGroup::create(['name' => 'Lab staff', 'for_labs' => true, 'permissions' => ['doctors' => ['view', 'edit'], 'patients' => ['view']]]);
+        $doctor = User::factory()->create(['first_name' => 'D', 'last_name' => 'R', 'function_type' => 'D', 'dg_lab_id' => 9, 'mobile_number' => '+96170999888', 'mobile_e164' => '96170999888']);
+        $theirs = User::factory()->create(['function_type' => 'D', 'dg_lab_id' => 5]);
+        $patient = User::factory()->create(['owner_lab_id' => 9]);
+        $this->actingAs(User::factory()->create(['admin_group_id' => $group->id, 'managed_lab_id' => 9]));
+
+        $this->put("/admin/doctors/{$doctor->id}", $this->newPatient(['function_type' => 'D', 'first_name' => 'Dana', 'mobile_number' => '+96170999888', 'dg_lab_id' => 5]))->assertRedirect();
+        $this->assertSame(['Dana', 9], [$doctor->refresh()->first_name, $doctor->dg_lab_id]);
+        $this->get("/admin/doctors/{$theirs->id}/edit")->assertNotFound();
+        // No edit permission on patients.
+        $this->get("/admin/patients/{$patient->id}/edit")->assertForbidden();
+        $this->get('/admin/patients')->assertDontSee('/edit');
     }
 }

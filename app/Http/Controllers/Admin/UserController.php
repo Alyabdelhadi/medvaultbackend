@@ -111,6 +111,39 @@ class UserController extends Controller
         ]);
     }
 
+    public function edit(Request $request, string $slug, User $user): View
+    {
+        $this->type($slug);
+        abort_unless($this->directory->canSee($request->user(), $user), 404);
+
+        return view('admin.users.edit', [
+            'slug' => $slug,
+            'user' => $user,
+            'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
+            'managerLab' => UserDirectory::scopeFor($request->user()),
+        ]);
+    }
+
+    public function update(Request $request, string $slug, User $user, AdminUserCreator $creator): RedirectResponse
+    {
+        $this->type($slug);
+        abort_unless($this->directory->canSee($request->user(), $user), 404);
+
+        $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id']);
+        $input['mobile_number'] = self::withCountry((string) $request->input('mobile_cc', ''), (string) ($input['mobile_number'] ?? ''));
+
+        // A lab's own account cannot move anyone to another lab.
+        [$saved, $errors, $numberChanged] = $creator->update($user, $input, UserDirectory::scopeFor($request->user()) === 0);
+        if (! $saved) {
+            return back()->withInput($request->except('password'))->withErrors($errors);
+        }
+
+        $listSlug = array_search($user->functionType(), self::SLUGS, true);
+        $message = 'Saved.'.($numberChanged ? ' The mobile number changed, so the labs will be asked again with the new number at the next sign-in or poll.' : '');
+
+        return redirect()->route('admin.users.show', [$listSlug, $user])->with('status', $message);
+    }
+
     public function export(Request $request, string $slug): StreamedResponse
     {
         $type = $this->type($slug);

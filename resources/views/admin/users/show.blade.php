@@ -1,7 +1,10 @@
 @extends('admin.layout')
 @section('title', $user->display_name ?: $user->username)
 @section('content')
-<h1>{{ $user->display_name ?: $user->username }}</h1>
+<div class="page-head">
+    <h1>{{ $user->display_name ?: $user->username }}</h1>
+    @can('perm', [$slug, 'edit'])<a class="btn" href="{{ route('admin.users.edit', [$slug, $user]) }}">Edit</a>@endcan
+</div>
 @if ($errors->any())<div class="notice error">{{ $errors->first() }}</div>@endif
 <div class="card">
     <div class="table-wrap" style="border:0">

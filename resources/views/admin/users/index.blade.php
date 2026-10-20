@@ -25,7 +25,7 @@
 </p>
 <div class="table-wrap">
 <table>
-    <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Mobile</th><th>Registration date</th><th>Type</th></tr></thead>
+    <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Mobile</th><th>Registration date</th><th>Type</th><th></th></tr></thead>
     <tbody>
     @forelse ($users as $u)
         <tr>
@@ -35,9 +35,12 @@
             <td>{{ $u->mobile_number ?: '—' }}</td>
             <td>{{ $u->created_at?->format('F j, Y g:i a') }}</td>
             <td>{{ $u->functionType() }}</td>
+            <td style="text-align:right;white-space:nowrap">
+                @can('perm', [$slug, 'edit'])<a class="btn small secondary" href="{{ route('admin.users.edit', [$slug, $u]) }}">Edit</a>@endcan
+            </td>
         </tr>
     @empty
-        <tr><td colspan="6" class="muted">No {{ strtolower($title) }} found{{ $search !== '' ? ' for this search' : '' }}.</td></tr>
+        <tr><td colspan="7" class="muted">No {{ strtolower($title) }} found{{ $search !== '' ? ' for this search' : '' }}.</td></tr>
     @endforelse
     </tbody>
 </table>
