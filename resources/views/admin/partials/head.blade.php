@@ -98,7 +98,10 @@ label{font-weight:500;display:block;margin:14px 0 6px;color:var(--ink)}
 .hint{color:var(--muted);font-size:12.5px;margin:4px 0 0;font-weight:400}
 input[type=text],input[type=url],input[type=email],input[type=number],input[type=password],input[type=date],input[type=search],input[type=tel],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);font:inherit;color:var(--ink);background:#fff;transition:border-color .15s,box-shadow .15s}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(43,169,169,.16)}
-textarea{min-height:100px}input[type=number]{max-width:140px}
+select:not([size]):not([multiple]){-webkit-appearance:none;appearance:none;padding-right:40px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235d6980' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center/16px 16px;cursor:pointer}
+select:not([size]):not([multiple]):hover{border-color:var(--navy)}
+select::-ms-expand{display:none}
+textarea{min-height:100px}input[type=number]{max-width:140px}.grid input[type=number]{max-width:none}
 input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;height:16px}
 .check{font-weight:400;display:flex;gap:9px;align-items:center}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:4px 28px}
