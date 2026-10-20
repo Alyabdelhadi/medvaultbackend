@@ -16,7 +16,7 @@
     @forelse ($labs as $lab)
         @php $img = $lab->image_url ?: $lab->thumbnail_url; @endphp
         <tr>
-            <td class="hide-sm">@if ($img)<img class="lab-thumb" src="{{ $img }}" alt="">@else<span class="lab-thumb empty">@include('admin.partials.icon', ['name' => 'lab'])</span>@endif</td>
+            <td class="hide-sm">@if ($img)<a href="{{ $img }}" data-lightbox="labs" data-caption="{{ $lab->title }}" class="zoom-thumb"><img class="lab-thumb" src="{{ $img }}" alt="{{ $lab->title }}" loading="lazy"></a>@else<span class="lab-thumb empty">@include('admin.partials.icon', ['name' => 'lab'])</span>@endif</td>
             <td class="card-title"><a href="{{ route('admin.labs.edit', $lab) }}">{{ $lab->title }}</a><span class="cell-sub">#{{ $lab->id }}</span></td>
             <td data-label="Location">{{ $lab->location ?: '—' }}</td>
             <td data-label="Phone">{{ $lab->phone ?: '—' }}</td>

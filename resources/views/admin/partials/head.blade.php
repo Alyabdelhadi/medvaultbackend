@@ -119,7 +119,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;hei
 .error-text{color:var(--err);font-size:12.5px;margin:4px 0 0}
 .muted{color:var(--muted)}
 .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--teal-50);color:#1d7f7f}
-.thumb{width:96px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px}
+.thumb{width:96px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px;display:block}
 code{background:var(--sky-50);color:var(--navy);padding:2px 6px;border-radius:5px;font-size:12.5px}
 .pager{display:flex;gap:6px;margin:14px 0;flex-wrap:wrap}
 .pager a,.pager span{min-width:34px;text-align:center;padding:5px 10px;border:1px solid var(--line);border-radius:8px;text-decoration:none;background:#fff;color:var(--ink)}
@@ -180,6 +180,37 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
 
 .chart-empty{height:170px;display:grid;place-content:center;justify-items:center;gap:8px;text-align:center;color:var(--muted);font-size:13px}
 .chart-empty .icon{width:28px;height:28px;color:var(--line-strong)}
+
+/* Image lists and the lightbox */
+.row-actions{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.card-actions .row-actions,td:last-child > .row-actions{justify-content:flex-end}
+.row-actions form{display:inline-flex;margin:0}
+.icon-btn{display:inline-grid;place-items:center;width:30px;height:30px;border:1px solid var(--line-strong);border-radius:8px;background:#fff;color:var(--navy);cursor:pointer;padding:0}
+.icon-btn:hover:not(:disabled){border-color:var(--navy)}.icon-btn:disabled{opacity:.35;cursor:default}
+.icon-btn .icon{width:16px;height:16px}
+.order-num{min-width:20px;font-weight:600;color:var(--ink-2)}
+.image-list td{vertical-align:middle}
+.image-list tr.is-editing td{background:var(--accent-50)}
+.cell-ellipsis{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zoom-thumb{position:relative;display:inline-block;border-radius:8px;cursor:zoom-in;line-height:0}
+.zoom-thumb::after{content:"";position:absolute;inset:0;border-radius:inherit;background:rgba(13,27,75,0) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5M11 8v6M8 11h6'/%3E%3C/svg%3E") no-repeat center;background-size:0;transition:background-color .15s}
+.zoom-thumb:hover::after,.zoom-thumb:focus-visible::after{background-color:rgba(13,27,75,.45);background-size:22px}
+.thumb{width:110px;height:64px}
+.thumb-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.image-preview{display:inline-block;margin-top:12px;border-radius:10px;cursor:zoom-in;line-height:0}
+.image-preview img{max-width:260px;max-height:150px;border-radius:10px;border:1px solid var(--line);object-fit:cover}
+.mv-lightbox{border:0;padding:0;background:transparent;max-width:100vw;max-height:100vh;width:100vw;height:100vh;overflow:hidden}
+.mv-lightbox::backdrop{background:rgba(6,12,32,.88)}
+.mv-lightbox[open]{display:grid;place-items:center}
+.mv-lightbox figure{margin:0;display:grid;justify-items:center;gap:12px;max-width:calc(100vw - 140px)}
+.mv-lightbox img{max-width:100%;max-height:calc(100vh - 120px);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5);background:#fff}
+.mv-lightbox figcaption{color:#e6ebf5;font-size:14px;display:flex;gap:14px;align-items:center}
+.mv-lightbox figcaption a{color:#7fd3d3}.lb-count{color:#9aa6c6}
+.lb-btn{position:fixed;display:grid;place-items:center;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+.lb-btn:hover{background:rgba(255,255,255,.18)}.lb-btn .icon{width:22px;height:22px}
+.lb-close{top:18px;right:18px}.lb-prev{left:18px;top:50%;transform:translateY(-50%)}.lb-next{right:18px;top:50%;transform:translateY(-50%)}
+.mv-lightbox.single .lb-prev,.mv-lightbox.single .lb-next{display:none}
+@media (max-width:700px){.mv-lightbox figure{max-width:calc(100vw - 24px)}.lb-prev,.lb-next{top:auto;bottom:18px;transform:none}}
 
 /* Confirm dialog */
 .mv-dialog{border:0;border-radius:var(--radius);padding:22px 24px;max-width:420px;width:calc(100% - 32px);box-shadow:var(--shadow-lg);color:var(--ink)}

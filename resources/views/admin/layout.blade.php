@@ -98,6 +98,15 @@
         @yield('content')
     </main>
 </div>
+<dialog class="mv-lightbox" id="mv-lightbox" aria-label="Image viewer">
+    <button type="button" class="lb-btn lb-close" data-lb="close" aria-label="Close">@include('admin.partials.icon', ['name' => 'close'])</button>
+    <button type="button" class="lb-btn lb-prev" data-lb="prev" aria-label="Previous image">@include('admin.partials.icon', ['name' => 'left'])</button>
+    <figure>
+        <img alt="">
+        <figcaption><span data-lb-caption></span> <span class="lb-count" data-lb-count></span> <a data-lb-open target="_blank" rel="noopener">Open original</a></figcaption>
+    </figure>
+    <button type="button" class="lb-btn lb-next" data-lb="next" aria-label="Next image">@include('admin.partials.icon', ['name' => 'right'])</button>
+</dialog>
 <dialog class="mv-dialog" id="mv-confirm">
     <form method="dialog">
         <h3 data-confirm-text>Are you sure?</h3>
@@ -122,6 +131,40 @@ document.querySelectorAll('table.cards').forEach(function (table) {
         });
     });
 });
+// Lightbox: <a href="big.jpg" data-lightbox="group" data-caption="...">. Images
+// in the same group page with the arrows (keys too); Esc or a click outside closes.
+(function () {
+    var box = document.getElementById('mv-lightbox'), img = box.querySelector('img');
+    var items = [], index = 0;
+    function show(i) {
+        index = (i + items.length) % items.length;
+        var a = items[index];
+        img.src = a.getAttribute('href');
+        img.alt = a.dataset.caption || '';
+        box.querySelector('[data-lb-caption]').textContent = a.dataset.caption || '';
+        box.querySelector('[data-lb-count]').textContent = items.length > 1 ? (index + 1) + ' / ' + items.length : '';
+        box.querySelector('[data-lb-open]').href = a.getAttribute('href');
+        box.classList.toggle('single', items.length < 2);
+    }
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest('a[data-lightbox]');
+        if (!a || e.metaKey || e.ctrlKey) return;
+        e.preventDefault();
+        items = Array.prototype.slice.call(document.querySelectorAll('a[data-lightbox="' + a.dataset.lightbox + '"]'));
+        show(items.indexOf(a));
+        box.showModal();
+    });
+    box.addEventListener('click', function (e) {
+        var action = e.target.closest('[data-lb]');
+        if (action) { action.dataset.lb === 'close' ? box.close() : show(index + (action.dataset.lb === 'next' ? 1 : -1)); return; }
+        if (e.target === box) box.close();
+    });
+    box.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowRight') show(index + 1);
+        if (e.key === 'ArrowLeft') show(index - 1);
+    });
+    box.addEventListener('close', function () { img.removeAttribute('src'); });
+})();
 // <form data-confirm="Question?" data-confirm-action="Button text" data-confirm-detail="...">:
 // asks in the page's own dialog before submitting.
 (function () {

@@ -26,6 +26,10 @@
         'calendar' => '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
         'close' => '<path d="M18 6 6 18M6 6l12 12"/>',
         'chart' => '<path d="M3 3v18h18"/><path d="M7 15v2M11 11v6M15 7v10M19 12v5"/>',
+        'up' => '<path d="m18 15-6-6-6 6"/>',
+        'left' => '<path d="m15 18-6-6 6-6"/>',
+        'right' => '<path d="m9 18 6-6-6-6"/>',
+        'zoom' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M11 8v6M8 11h6"/>',
         'menu' => '<path d="M4 6h16M4 12h16M4 18h16"/>',
     ];
 @endphp

@@ -32,8 +32,11 @@
         <div>
             <label for="image_url">Lab image URL</label>
             <input id="image_url" name="image_url" type="url" value="{{ $v('image_url') }}">
-            <input name="image_file" type="file" accept="image/*" style="margin-top:6px">
+            <input name="image_file" type="file" accept="image/*">
             <p class="hint">Upload to replace the URL.@if ($lab->thumbnail_url) Falls back to the imported featured image when empty.@endif</p>
+            @if ($lab->image_url ?: $lab->thumbnail_url)
+                <a class="image-preview" href="{{ $lab->image_url ?: $lab->thumbnail_url }}" data-lightbox="lab-image" data-caption="{{ $lab->title }}"><img src="{{ $lab->image_url ?: $lab->thumbnail_url }}" alt="{{ $lab->title }}"></a>
+            @endif
         </div>
         @foreach (['location' => 'Location', 'google_map_url' => 'Google Maps URL', 'latitude' => 'Latitude (e.g. 33.8938)', 'longitude' => 'Longitude (e.g. 35.5018)', 'appointment_phone' => 'Appointment phone', 'mobile_phone' => 'Mobile phone', 'phone' => 'Phone number', 'email' => 'Email', 'website' => 'Website link', 'refer_link' => 'Refer link (overrides the global default)', 'facebook' => 'Facebook URL', 'instagram' => 'Instagram URL', 'twitter' => 'Twitter / X URL', 'linkedin' => 'LinkedIn URL', 'youtube' => 'YouTube URL', 'tiktok' => 'TikTok URL'] as $field => $label)
             <div>
@@ -51,7 +54,7 @@
         <p class="hint">One image URL per line, in display order. Uploads below are added at the end.</p>
         <input name="slide_files[]" type="file" accept="image/*" multiple>
         @if ($lab->slides)
-            <div class="actions">@foreach ($lab->slides as $slide)<img class="thumb" src="{{ $slide }}" alt="">@endforeach</div>
+            <div class="thumb-strip">@foreach ($lab->slides as $slide)<a href="{{ $slide }}" data-lightbox="lab-slides" data-caption="Slide {{ $loop->iteration }}" class="zoom-thumb"><img class="thumb" src="{{ $slide }}" alt="Slide {{ $loop->iteration }}" loading="lazy"></a>@endforeach</div>
         @endif
     </div>
 

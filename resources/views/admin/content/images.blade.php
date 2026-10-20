@@ -11,8 +11,13 @@
         @if ($editing) @method('put') @endif
         <label for="image_url">Image URL</label>
         <input id="image_url" name="image_url" type="url" value="{{ old('image_url', $editing?->image_url) }}">
-        <input name="image_file" type="file" accept="image/*" style="margin-top:6px">
+        <input name="image_file" type="file" accept="image/*">
         <p class="hint">Paste a URL or upload an image.</p>
+        @if ($editing?->image_url)
+            <a class="image-preview" href="{{ $editing->image_url }}" data-lightbox="current" data-caption="Current image">
+                <img src="{{ $editing->image_url }}" alt="Current image">
+            </a>
+        @endif
         @if ($kind === 'sliders')
             <label for="title">Title (optional)</label>
             <input id="title" name="title" type="text" value="{{ old('title', $editing?->title) }}">
@@ -21,33 +26,41 @@
         <input id="link_url" name="link_url" type="url" value="{{ old('link_url', $editing?->link_url) }}" @if ($kind === 'banners') required @endif>
         <div class="actions">
             <button class="btn" type="submit">{{ $editing ? 'Update' : 'Add' }} {{ $meta['singular'] }}</button>
-            @if ($editing)<a href="{{ route('admin.images.index', $kind) }}">Cancel</a>@endif
+            @if ($editing)<a class="btn secondary" href="{{ route('admin.images.index', $kind) }}">Cancel</a>@endif
         </div>
     </form>
 </div>
 
 <h2>All {{ $meta['title'] }} ({{ $items->count() }})</h2>
 <div class="table-wrap">
-<table>
-    <thead><tr><th>#</th><th>Image</th>@if ($kind === 'sliders')<th>Title</th>@endif<th>Link URL</th><th>Order</th><th>Actions</th></tr></thead>
+<table class="cards image-list">
+    <thead><tr><th style="width:84px">Order</th><th style="width:132px">Image</th>@if ($kind === 'sliders')<th>Title</th>@endif<th>Link</th><th style="width:1%"></th></tr></thead>
     <tbody>
     @forelse ($items as $i => $item)
-        <tr>
-            <td>{{ $i + 1 }}</td>
-            <td><img class="thumb" src="{{ $item->image_url }}" alt=""></td>
-            @if ($kind === 'sliders')<td>{{ $item->title ?: '—' }}</td>@endif
-            <td>@if ($item->link_url)<a href="{{ $item->link_url }}" target="_blank" rel="noopener">{{ $item->link_url }}</a>@else — @endif</td>
-            <td>
-                <form method="post" action="{{ route('admin.images.move', [$kind, $item->id, 'up']) }}" style="display:inline">@csrf<button class="btn secondary small" @disabled($i === 0)>↑</button></form>
-                <form method="post" action="{{ route('admin.images.move', [$kind, $item->id, 'down']) }}" style="display:inline">@csrf<button class="btn secondary small" @disabled($loop->last)>↓</button></form>
+        <tr @class(['is-editing' => $editing?->id === $item->id])>
+            <td data-label="Order">
+                <div class="row-actions">
+                    <span class="order-num">{{ $i + 1 }}</span>
+                    <form method="post" action="{{ route('admin.images.move', [$kind, $item->id, 'up']) }}">@csrf<button class="icon-btn" title="Move up" aria-label="Move up" @disabled($i === 0)>@include('admin.partials.icon', ['name' => 'up'])</button></form>
+                    <form method="post" action="{{ route('admin.images.move', [$kind, $item->id, 'down']) }}">@csrf<button class="icon-btn" title="Move down" aria-label="Move down" @disabled($loop->last)>@include('admin.partials.icon', ['name' => 'chevron'])</button></form>
+                </div>
             </td>
-            <td class="actions" style="margin:0">
-                <a class="btn secondary small" href="{{ route('admin.images.index', [$kind, 'edit' => $item->id]) }}">Edit</a>
-                <form method="post" action="{{ route('admin.images.destroy', [$kind, $item->id]) }}" data-confirm="Delete this {{ strtolower($meta['singular']) }}?">@csrf @method('delete')<button class="btn danger small">Delete</button></form>
+            <td class="card-title">
+                <a href="{{ $item->image_url }}" data-lightbox="{{ $kind }}" data-caption="{{ $item->title ?: $meta['singular'].' '.($i + 1) }}" class="zoom-thumb" title="Open full size">
+                    <img class="thumb" src="{{ $item->image_url }}" alt="{{ $item->title ?: $meta['singular'].' '.($i + 1) }}" loading="lazy">
+                </a>
+            </td>
+            @if ($kind === 'sliders')<td data-label="Title">{{ $item->title ?: '—' }}</td>@endif
+            <td data-label="Link" class="cell-ellipsis">@if ($item->link_url)<a href="{{ $item->link_url }}" target="_blank" rel="noopener" title="{{ $item->link_url }}">{{ $item->link_url }}</a>@else <span class="muted">No link</span> @endif</td>
+            <td class="card-actions">
+                <div class="row-actions">
+                    <a class="btn secondary small" href="{{ route('admin.images.index', [$kind, 'edit' => $item->id]) }}">Edit</a>
+                    <form method="post" action="{{ route('admin.images.destroy', [$kind, $item->id]) }}" data-confirm="Delete this {{ strtolower($meta['singular']) }}?" data-confirm-detail="It disappears from the app's home screen.">@csrf @method('delete')<button class="btn danger small">Delete</button></form>
+                </div>
             </td>
         </tr>
     @empty
-        <tr><td colspan="6" class="muted">None added yet.</td></tr>
+        <tr><td colspan="5" class="muted">None added yet.</td></tr>
     @endforelse
     </tbody>
 </table>

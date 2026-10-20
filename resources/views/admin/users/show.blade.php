@@ -13,7 +13,7 @@
     <div class="page-head" style="margin:0">
         <div class="person-head">
             @if ($siteWide && $user->profile_pic)
-                <img class="person-avatar" src="{{ $user->profile_pic }}" alt="">
+                <a href="{{ $user->profile_pic }}" data-lightbox="person" data-caption="{{ $name }}" class="zoom-thumb" style="border-radius:50%"><img class="person-avatar" src="{{ $user->profile_pic }}" alt="{{ $name }}"></a>
             @else
                 <span class="person-avatar">{{ $initials ?: '?' }}</span>
             @endif
@@ -53,7 +53,7 @@
         <h2 style="margin-top:0">Documents</h2>
         <div class="docs">
             @foreach (['National ID' => $user->id_image, 'Insurance card' => $user->insurance_image] as $label => $url)
-                @if ($url)<figure><figcaption>{{ $label }}</figcaption><a href="{{ $url }}" target="_blank" rel="noopener"><img src="{{ $url }}" alt="{{ $label }}"></a></figure>@endif
+                @if ($url)<figure><figcaption>{{ $label }}</figcaption><a href="{{ $url }}" data-lightbox="docs" data-caption="{{ $label }}" class="zoom-thumb"><img src="{{ $url }}" alt="{{ $label }}"></a></figure>@endif
             @endforeach
         </div>
     </div>
