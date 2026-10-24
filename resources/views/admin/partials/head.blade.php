@@ -232,6 +232,11 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
 .person-avatar{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--sky-50);color:var(--navy);display:grid;place-items:center;font-weight:600;font-size:18px;flex:none}
 .person-head h1{margin:0}
 .person-meta{display:flex;gap:8px 18px;flex-wrap:wrap;color:var(--ink-2);font-size:13.5px;margin-top:4px}
+.audit-filters input[type=search]{width:240px}.audit-filters select,.audit-filters input[type=date]{width:auto}
+.audit-details{margin-top:4px;font-weight:400}.audit-details summary{cursor:pointer;color:var(--muted);font-size:12.5px}
+.audit-change{margin:8px 0 0}.audit-fields{width:auto;margin:4px 0 0;font-size:12.5px;border:0}.audit-fields th,.audit-fields td{padding:2px 12px 2px 0;border:0;background:none;text-align:left;vertical-align:top;font-weight:400;word-break:break-word}
+.audit-fields th{color:var(--muted);white-space:nowrap}.audit-before{color:var(--muted);text-decoration:line-through}
+.trace{background:#0f1a33;color:#d7deee;padding:16px;border-radius:var(--radius-sm);overflow:auto;font-size:12px;line-height:1.55;max-height:560px}
 .details{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px 28px;margin:0}
 .details dt{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:2px}.details dd{margin:0;font-weight:500}
 .docs{display:flex;gap:16px;flex-wrap:wrap}.docs figure{margin:0}.docs figcaption{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -285,6 +290,7 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
     table.cards td.card-actions{justify-content:flex-start;padding-top:8px}table.cards td.card-actions::before{content:none}
     table.cards td.hide-sm,table.cards td:empty{display:none}
     table.cards tfoot,table.cards tfoot tr,table.cards tfoot th{display:block;text-align:left}
+    table.cards .audit-fields,table.cards .audit-fields tbody{display:table;width:auto}table.cards .audit-fields tr{display:table-row;padding:0;border:0}table.cards .audit-fields td{display:table-cell;width:auto;padding:2px 12px 2px 0;text-align:left}table.cards .audit-fields td::before{content:none}
 }
 
 /* Small screens: the sidebar slides over the page. */

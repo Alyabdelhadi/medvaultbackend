@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\Admin\UserDirectory;
+use App\Services\Audit\AuditTrail;
 use App\Support\Mobile;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -26,7 +27,7 @@ use Illuminate\Support\Facades\DB;
 #[Description('Capitalize first names and add the country code to mobile numbers of app users')]
 class TidyUsers extends Command
 {
-    public function handle(): int
+    public function handle(AuditTrail $audit): int
     {
         $apply = (bool) $this->option('apply');
         $names = $mobiles = 0;
@@ -88,6 +89,10 @@ class TidyUsers extends Command
         if ($skipped !== []) {
             $this->components->warn(count($skipped).' numbers left alone: the stored mobile_e164 does not match the raw number.');
             $this->table(['Id', 'Raw number', 'Stored e164'], $skipped);
+        }
+
+        if ($apply && $names + $mobiles > 0) {
+            $audit->record('console.tidy_users', "Capitalized {$names} first names and added the country code to {$mobiles} mobile numbers (medvault:tidy-users)", null, [], false);
         }
 
         $verb = $apply ? 'Updated' : 'Would update';

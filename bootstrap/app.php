@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Middleware\AuthenticateAppToken;
+use App\Http\Middleware\RecordAdminChanges;
 use App\Http\Middleware\RequireAdminPermission;
 use App\Http\WpError;
+use App\Services\Audit\ErrorRecorder;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -28,7 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['app.token' => AuthenticateAppToken::class, 'perm' => RequireAdminPermission::class]);
+        $middleware->alias(['app.token' => AuthenticateAppToken::class, 'perm' => RequireAdminPermission::class, 'audit' => RecordAdminChanges::class]);
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
 
         // WordPress neither trimmed input nor turned "" into null. Both matter:
@@ -61,6 +63,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->dontReport(WpError::class);
+
+        // A copy of everything reported, for the admin's Error Log. Laravel's
+        // own log still gets it too.
+        $exceptions->report(function (Throwable $e) {
+            app(ErrorRecorder::class)->capture($e);
+        });
 
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $isApi($request) || $request->expectsJson());
     })->create();

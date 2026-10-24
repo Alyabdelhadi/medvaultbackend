@@ -29,6 +29,15 @@ class User extends Authenticatable
 
     public const ROLE_SUBSCRIBER = 'subscriber';
 
+    /** created_via: where an account was made. Null is from before this was recorded. */
+    public const VIA_APP = 'app';
+
+    public const VIA_ADMIN = 'admin';
+
+    public const VIA_CONSOLE = 'console';
+
+    public const VIA_WORDPRESS = 'wordpress';
+
     protected $guarded = ['id'];
 
     protected function casts(): array
@@ -38,7 +47,42 @@ class User extends Authenticatable
             'admin_group_id' => 'integer',
             'owner_lab_id' => 'integer',
             'dg_lab_id' => 'integer',
+            'created_by_id' => 'integer',
         ];
+    }
+
+    /** The created_* columns for a new account made $via, by $creator. */
+    public static function createdBy(string $via, ?self $creator = null): array
+    {
+        return [
+            'created_via' => $via,
+            'created_by_id' => $creator?->id,
+            'created_by_name' => $creator ? mb_substr($creator->display_name ?: $creator->username, 0, 120) : null,
+        ];
+    }
+
+    /** Where this account came from, in words, for the admin. */
+    public function createdViaLabel(): string
+    {
+        return match ($this->created_via) {
+            self::VIA_APP => 'Signed up in the app',
+            self::VIA_ADMIN => 'Added in the admin'.($this->created_by_name ? ' by '.$this->created_by_name : ''),
+            self::VIA_CONSOLE => 'Created on the server (command line)',
+            self::VIA_WORDPRESS => 'Imported from WordPress',
+            default => 'Not recorded (created before tracking began)',
+        };
+    }
+
+    /** The same, in a word or two, for list rows. */
+    public function createdViaShort(): string
+    {
+        return match ($this->created_via) {
+            self::VIA_APP => 'via app',
+            self::VIA_ADMIN => $this->created_by_name ? 'by '.$this->created_by_name : 'via admin',
+            self::VIA_CONSOLE => 'via command line',
+            self::VIA_WORDPRESS => 'from WordPress',
+            default => '',
+        };
     }
 
     /** P, D or G. An unset type has always meant a patient. */

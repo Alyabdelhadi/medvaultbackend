@@ -4,7 +4,11 @@
     $roleLabel = ! $me ? '' : ($me->isAdministrator() ? 'Administrator' : ($me->effectiveGroup()?->name ?? 'Staff'));
     $name = $me ? ($me->display_name ?: $me->username) : '';
     $initials = collect(preg_split('/\s+/', trim($name)))->filter()->take(2)->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))->implode('');
-    $badges = ['billing_due' => fn () => \App\Models\LabPlan::needingAttention()->count()];
+    $badges = [
+        'billing_due' => fn () => \App\Models\LabPlan::needingAttention()->count(),
+        'errors_open' => fn () => \App\Models\ErrorLog::open()->count(),
+    ];
+    $badgeTitles = ['billing_due' => 'Payments due', 'errors_open' => 'Open errors'];
     $isOn = fn (string $pattern) => str_contains($pattern, '/') ? request()->is($pattern) : request()->routeIs($pattern);
     // Where this page sits, for the top bar: "People › Patients". The page
     // title itself is the big heading, so it is not repeated up there.
@@ -38,12 +42,17 @@
             @php $visible = array_filter($modules, fn ($m, $key) => $me->canAdmin($key), ARRAY_FILTER_USE_BOTH); @endphp
             @continue (! $visible)
             @if (isset(\App\Support\AdminModules::FOLDED[$section]))
-                @php $open = collect($visible)->contains(fn ($m) => $isOn($m['active'])); @endphp
+                @php
+                    $open = collect($visible)->contains(fn ($m) => $isOn($m['active']));
+                    // A closed section still shows that something inside needs attention.
+                    $foldBadges = collect($visible)->filter(fn ($m) => isset($m['badge'], $badges[$m['badge']]))->map(fn ($m) => $badges[$m['badge']]())->filter();
+                @endphp
                 <details class="mv-fold" @if ($open) open @endif>
-                    <summary @class(['on' => $open])>@include('admin.partials.icon', ['name' => \App\Support\AdminModules::FOLDED[$section]])<span class="mv-label">{{ $section }}</span>@include('admin.partials.icon', ['name' => 'chevron'])</summary>
+                    <summary @class(['on' => $open])>@include('admin.partials.icon', ['name' => \App\Support\AdminModules::FOLDED[$section]])<span class="mv-label">{{ $section }}</span>@if ($foldBadges->isNotEmpty() && ! $open)<span class="mv-badge">{{ $foldBadges->sum() }}</span>@endif @include('admin.partials.icon', ['name' => 'chevron'])</summary>
                     <div class="mv-fold-items">
                         @foreach ($visible as $key => $module)
-                            <a href="{{ route($module['route'][0], array_slice($module['route'], 1)) }}" @class(['on' => $isOn($module['active'])])>{{ $module['label'] }}</a>
+                            @php $badge = isset($module['badge'], $badges[$module['badge']]) ? $badges[$module['badge']]() : 0; @endphp
+                            <a href="{{ route($module['route'][0], array_slice($module['route'], 1)) }}" @class(['on' => $isOn($module['active'])])>{{ $module['label'] }}@if ($badge)<span class="mv-badge" title="{{ $badgeTitles[$module['badge']] }}">{{ $badge }}</span>@endif</a>
                         @endforeach
                     </div>
                 </details>
@@ -53,7 +62,7 @@
                     @php $badge = isset($module['badge'], $badges[$module['badge']]) ? $badges[$module['badge']]() : 0; @endphp
                     <a href="{{ route($module['route'][0], array_slice($module['route'], 1)) }}" @class(['on' => $isOn($module['active'])])>
                         @include('admin.partials.icon', ['name' => $module['icon']])<span class="mv-label">{{ $module['label'] }}</span>
-                        @if ($badge)<span class="mv-badge" title="Payments due">{{ $badge }}</span>@endif
+                        @if ($badge)<span class="mv-badge" title="{{ $badgeTitles[$module['badge']] }}">{{ $badge }}</span>@endif
                     </a>
                 @endforeach
             @endif

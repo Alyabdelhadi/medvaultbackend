@@ -55,6 +55,8 @@ final class AdminModules
             'Administration' => [
                 'staff' => ['label' => 'Admin Accounts', 'icon' => 'key', 'route' => ['admin.staff.index'], 'active' => 'admin.staff.*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'groups' => ['label' => 'Groups & Permissions', 'icon' => 'shield', 'route' => ['admin.groups.index'], 'active' => 'admin.groups.*', 'actions' => self::ACTIONS, 'site_wide' => true],
+                'audit' => ['label' => 'Audit Log', 'icon' => 'history', 'route' => ['admin.audit.index'], 'active' => 'admin.audit.*', 'actions' => ['view'], 'site_wide' => true],
+                'errors' => ['label' => 'Error Log', 'icon' => 'alert', 'route' => ['admin.errors.index'], 'active' => 'admin.errors.*', 'actions' => ['view', 'edit', 'delete'], 'site_wide' => true, 'badge' => 'errors_open'],
             ],
             'Settings' => [
                 'alerts' => ['label' => 'Result Alerts', 'icon' => 'bell', 'route' => ['admin.alerts.show'], 'active' => 'admin.alerts.*', 'actions' => ['view', 'edit'], 'site_wide' => true],

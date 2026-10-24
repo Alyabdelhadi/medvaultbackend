@@ -30,6 +30,8 @@
         'left' => '<path d="m15 18-6-6 6-6"/>',
         'right' => '<path d="m9 18 6-6-6-6"/>',
         'zoom' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M11 8v6M8 11h6"/>',
+        'history' => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+        'alert' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
         'menu' => '<path d="M4 6h16M4 12h16M4 18h16"/>',
     ];
 @endphp

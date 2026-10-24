@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use App\Services\Accounts\Passwords;
+use App\Services\Audit\AuditTrail;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -17,7 +18,7 @@ use Illuminate\Console\Command;
 #[Description('Create an admin login, or make an existing account an administrator')]
 class MakeAdmin extends Command
 {
-    public function handle(Passwords $passwords): int
+    public function handle(Passwords $passwords, AuditTrail $audit): int
     {
         $username = (string) $this->argument('username');
         $user = User::whereRaw('LOWER(username) = ?', [mb_strtolower($username)])->first();
@@ -29,7 +30,7 @@ class MakeAdmin extends Command
             return self::FAILURE;
         }
 
-        $user ??= new User;
+        $user ??= (new User)->forceFill(User::createdBy(User::VIA_CONSOLE));
         $user->forceFill([
             'username' => $user->username ?? $username,
             'email' => $this->option('email') ?: $user->email,
@@ -41,6 +42,8 @@ class MakeAdmin extends Command
         if ($password !== '') {
             $passwords->set($user, $password);
         }
+
+        $audit->record('console.make_admin', "Made {$user->username} an administrator (medvault:make-admin)", $user, [], false);
 
         $this->components->info("{$user->username} is an administrator. Sign in at ".url('admin/login'));
 

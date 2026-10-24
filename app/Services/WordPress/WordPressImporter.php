@@ -3,6 +3,7 @@
 namespace App\Services\WordPress;
 
 use App\Models\Setting;
+use App\Models\User;
 use App\Support\Mobile;
 use App\Support\WordPress\Serialized;
 use Carbon\CarbonImmutable;
@@ -295,6 +296,9 @@ final class WordPressImporter
             'owner_lab_id' => $this->positiveInt($m['_owner_lab_id'] ?? null),
             'dg_lab_id' => $this->positiveInt($m['_dg_lab_id'] ?? null),
             'api_token_hash' => $token === null ? null : hash('sha256', $token),
+            // WordPress kept no record of whether the app or its admin made
+            // an account, so "imported" is all that can honestly be said.
+            'created_via' => User::VIA_WORDPRESS,
             'created_at' => $this->gmtToApp($u->user_registered),
             'updated_at' => $this->gmtToApp($u->user_registered),
         ];

@@ -104,3 +104,21 @@ PHP is a static build with no system install; Composer runs with
   "advance" moves `next_due_on` one period with `addMonthNoOverflow` (Jan 31 →
   Feb 28). A plan inside `remind_days` of its due date, or past it, shows on
   Accounting, the dashboard and as the sidebar badge. Amounts are USD.
+- **Audit log (`AuditTrail`)**: every admin write is one row, written by the
+  `audit` middleware (`RecordAdminChanges`) from the Eloquent saves of
+  `AuditTrail::WATCHED` models, so a new admin page is logged without code.
+  Only requests that went through are logged (no 4xx, no flashed errors).
+  App sign-ups, profile changes, password resets, account deletions, admin
+  sign-ins and console commands call `record()` themselves. Passwords,
+  `encrypted` casts and encrypted settings are stored as "(changed)", never a
+  value; `api_token_hash` is not stored at all. Rows snapshot actor and
+  subject names and have no foreign keys, so history outlives a deletion.
+  Writing a row never throws.
+- **`users.created_via`** is `app | admin | console | wordpress`, with
+  `created_by_id`/`created_by_name` for admin-made accounts. Null means
+  "before tracking": WordPress recorded nothing that tells an app sign-up from
+  an admin one, so nothing is guessed.
+- **Error log (`ErrorRecorder`)**: every *reported* exception is also upserted
+  into `error_logs`, one row per class + file + line with a count; a resolved
+  row reopens when it recurs. No request body, no query string, no trace
+  arguments. `medvault:prune-logs` runs daily (`config('medvault.logs')`).

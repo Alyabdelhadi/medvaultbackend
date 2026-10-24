@@ -30,9 +30,11 @@ final class AdminUserCreator
     ) {}
 
     /**
+     * $creator is the admin account adding it, kept on the row as "added by".
+     *
      * @return array{0: ?User, 1: array<string, string>} the account, or field => message
      */
-    public function create(array $input): array
+    public function create(array $input, ?User $creator = null): array
     {
         [$f, $errors] = $this->check($input, null);
         if ($errors !== []) {
@@ -50,6 +52,7 @@ final class AdminUserCreator
             // Set for patients too, so a facility's own list is not limited
             // to its doctors and guarantors.
             'owner_lab_id' => $f['owner_lab_id'] > 0 ? $f['owner_lab_id'] : null,
+            ...User::createdBy(User::VIA_ADMIN, $creator),
         ]);
 
         DB::transaction(function () use ($user, $f) {

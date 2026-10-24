@@ -32,7 +32,7 @@
             <td class="card-title"><a href="{{ route('admin.users.show', [$slug, $u]) }}">{{ $u->display_name ?: '—' }}</a><span class="cell-sub">{{ $u->username }}</span></td>
             <td data-label="Mobile">{{ $u->mobile_number ?: '—' }}</td>
             <td data-label="Email">{{ $u->email ?: '—' }}</td>
-            <td data-label="Registered" style="white-space:nowrap">{{ $u->created_at?->format('M j, Y') }}</td>
+            <td data-label="Registered" style="white-space:nowrap">{{ $u->created_at?->format('M j, Y') }}@if ($u->createdViaShort() !== '')<span class="cell-sub">{{ $u->createdViaShort() }}</span>@endif</td>
             <td class="card-actions" style="text-align:right;white-space:nowrap">@can('perm', [$slug, 'edit'])<a class="btn small secondary" href="{{ route('admin.users.edit', [$slug, $u]) }}">Edit</a>@endcan</td>
         </tr>
     @empty

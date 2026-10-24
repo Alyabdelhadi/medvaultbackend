@@ -92,8 +92,8 @@ class UsersAdminTest extends AdminTestCase
         $csv = $response->streamedContent();
 
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
-        $this->assertStringContainsString("Name,Username,Email,Mobile,\"Registration Date\",Type\n", $csv);
-        $this->assertStringContainsString("\"Nour Al Hariri\",nour,,'+96170918679,\"2026-01-10 09:00:00\",P\n", $csv);
+        $this->assertStringContainsString("Name,Username,Email,Mobile,\"Registration Date\",Type,\"How the account was made\"\n", $csv);
+        $this->assertStringContainsString("\"Nour Al Hariri\",nour,,'+96170918679,\"2026-01-10 09:00:00\",P,\"Not recorded (created before tracking began)\"\n", $csv);
         // The administrator is an admin account, not a patient.
         $this->assertStringEndsWith("\nTotal,1\n", $csv);
         $this->assertStringContainsString('medvault-patients-', $response->headers->get('Content-Disposition'));

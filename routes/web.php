@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ErrorLogController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\HomeImagesController;
 use App\Http\Controllers\Admin\LabController;
@@ -18,12 +20,13 @@ Route::redirect('/', '/admin');
 | Every route below names its page and action, `perm:<page>,<action>`, from
 | App\Support\AdminModules. Administrators pass every check; other accounts
 | get what their group grants, and a lab's accounts never a site-wide page.
+| `audit` writes every change that goes through to the audit log.
 */
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('login', [AuthController::class, 'show'])->name('login');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:admin-login')->name('login.submit');
 
-    Route::middleware('auth')->group(function () {
+    Route::middleware(['auth', 'audit'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/', [AuthController::class, 'home'])->name('home');
 
@@ -82,6 +85,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('groups/{group}/edit', [GroupController::class, 'edit'])->middleware('perm:groups,edit')->name('groups.edit');
         Route::put('groups/{group}', [GroupController::class, 'update'])->middleware('perm:groups,edit')->name('groups.update');
         Route::delete('groups/{group}', [GroupController::class, 'destroy'])->middleware('perm:groups,delete')->name('groups.destroy');
+
+        Route::get('audit-log', [AuditController::class, 'index'])->middleware('perm:audit')->name('audit.index');
+
+        Route::get('errors', [ErrorLogController::class, 'index'])->middleware('perm:errors')->name('errors.index');
+        Route::get('errors/{error}', [ErrorLogController::class, 'show'])->whereNumber('error')->middleware('perm:errors')->name('errors.show');
+        Route::post('errors/{error}/resolve', [ErrorLogController::class, 'resolve'])->whereNumber('error')->middleware('perm:errors,edit')->name('errors.resolve');
+        Route::delete('errors/{error}', [ErrorLogController::class, 'destroy'])->whereNumber('error')->middleware('perm:errors,delete')->name('errors.destroy');
+        Route::delete('errors', [ErrorLogController::class, 'clear'])->middleware('perm:errors,delete')->name('errors.clear');
 
         // Patients, Doctors and Guarantors; a lab's accounts see their lab only.
         Route::whereIn('slug', ['patients', 'doctors', 'guarantors'])->group(function () {

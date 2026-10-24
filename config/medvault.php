@@ -108,6 +108,16 @@ return [
         'cache_days' => 30,
     ],
 
+    /*
+    | Audit Log and Error Log retention. Audit rows are kept long, since they
+    | answer "who changed this" months later; resolved errors only while
+    | they are still useful.
+    */
+    'logs' => [
+        'audit_days' => (int) env('MEDVAULT_AUDIT_DAYS', 730),
+        'resolved_error_days' => (int) env('MEDVAULT_RESOLVED_ERROR_DAYS', 90),
+    ],
+
     'otp' => [
         'ttl_seconds' => 600,
         // Per number, per ttl window.

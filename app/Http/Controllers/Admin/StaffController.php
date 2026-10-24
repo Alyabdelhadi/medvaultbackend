@@ -50,6 +50,7 @@ class StaffController extends Controller
             'display_name' => $data['display_name'],
             'password' => '',
             ...$this->access($data),
+            ...User::createdBy(User::VIA_ADMIN, $request->user()),
         ])->save();
         $passwords->set($user, $data['password']);
 

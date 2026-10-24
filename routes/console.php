@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Schedule;
 */
 Schedule::command('medvault:poll-results')->everyMinute();
 
+Schedule::command('medvault:prune-logs')->dailyAt('03:30');
+
 // A heartbeat, so the admin and medvault:doctor can warn when cron is not
 // running the scheduler.
 Schedule::call(fn () => Setting::put('scheduler_seen_at', now()->format('Y-m-d H:i:s')))

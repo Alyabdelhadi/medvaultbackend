@@ -8,6 +8,7 @@ use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
 use App\Services\Accounts\Profile;
 use App\Services\Accounts\UserLookup;
+use App\Services\Audit\AuditTrail;
 use App\Support\Mobile;
 use App\Support\WordPress\Sanitize;
 use DateTimeImmutable;
@@ -30,7 +31,7 @@ class ProfileController extends Controller
      * id_image, insurance_image and blood_type distinguish "not sent" from
      * "sent empty", which clears them.
      */
-    public function update(Request $request, UserLookup $users, Passwords $passwords, ApiTokens $tokens): JsonResponse
+    public function update(Request $request, UserLookup $users, Passwords $passwords, ApiTokens $tokens, AuditTrail $audit): JsonResponse
     {
         $user = $request->user();
 
@@ -121,6 +122,8 @@ class ProfileController extends Controller
             $changes['blood_type'] = $bloodType ?: null;
         }
 
+        // Collected from the saves below, with the password shown only as changed.
+        $audit->watch();
         $newToken = DB::transaction(function () use ($user, $changes, $password, $passwords, $tokens) {
             $user->forceFill($changes)->save();
             if ($password === '') {
@@ -132,6 +135,11 @@ class ProfileController extends Controller
             return $tokens->issue($user);
         });
 
+        $audit->stop();
+        if ($audit->changes() !== []) {
+            $audit->record('account.profile', 'Changed their profile in the app', $user);
+        }
+
         $data = Profile::of($user->refresh());
         if ($newToken !== null) {
             $data['new_token'] = $newToken;
@@ -140,8 +148,9 @@ class ProfileController extends Controller
         return response()->json(['success' => true, 'message' => 'Profile updated successfully.', 'data' => $data]);
     }
 
-    public function destroy(Request $request): JsonResponse
+    public function destroy(Request $request, AuditTrail $audit): JsonResponse
     {
+        $audit->record('account.deleted', 'Deleted their account in the app', $request->user(), []);
         // Lab accounts, devices and notifications go with it.
         $request->user()->delete();
 

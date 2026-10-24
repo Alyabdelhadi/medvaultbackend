@@ -10,6 +10,7 @@ use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
 use App\Services\Accounts\Profile;
 use App\Services\Accounts\UserLookup;
+use App\Services\Audit\AuditTrail;
 use App\Services\Labs\LabFailure;
 use App\Services\Labs\LabRegistry;
 use App\Services\Labs\LabTokenService;
@@ -41,6 +42,7 @@ class AuthController extends Controller
         private readonly ApiTokens $tokens,
         private readonly LabTokenService $labTokens,
         private readonly LabRegistry $labs,
+        private readonly AuditTrail $audit,
     ) {}
 
     public function register(Request $request): JsonResponse
@@ -115,6 +117,7 @@ class AuthController extends Controller
             'insurance_image' => $insuranceImage ?: null,
             'blood_type' => $bloodType ?: null,
         ]);
+        $this->audit->record('account.signup', 'Signed up in the app', $user, [], $user);
 
         return response()->json([
             'success' => true,
@@ -205,6 +208,7 @@ class AuthController extends Controller
             'function_type' => $type,
             'dg_lab_id' => $labId > 0 ? $labId : null,
         ]);
+        $this->audit->record('account.signup', 'Signed up in the app as a '.($type === 'D' ? 'doctor' : 'guarantor'), $user, [], $user);
 
         // Log in at every lab now, so the tokens are there on first use.
         $issued = $this->labTokens->refreshAll($user, $phone);
@@ -259,6 +263,7 @@ class AuthController extends Controller
                 ->whereIn('lab_id', array_map(fn ($cfg) => $cfg->labId, $this->labs->active()))
                 ->update(['auth_failures' => 0]);
         });
+        $this->audit->record('account.password_reset', 'Reset their password with an SMS code', $user, [], $user);
 
         return response()->json([
             'success' => true,
@@ -327,6 +332,7 @@ class AuthController extends Controller
             'mobile_number' => $mobile,
             ...Mobile::indexColumns($mobile),
             'role' => User::ROLE_SUBSCRIBER,
+            'created_via' => User::VIA_APP,
             ...$extra,
         ]);
 

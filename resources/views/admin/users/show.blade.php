@@ -39,6 +39,7 @@
             'Gender' => $user->gender ? ucfirst($user->gender) : null,
             'Blood type' => $user->blood_type,
             'Registered' => $user->created_at?->format('M j, Y'),
+            'How the account was made' => $user->createdViaLabel(),
             'Uses the app' => $user->api_token_hash ? 'Yes, signed in' : 'Not signed in',
             'Phones for notifications' => $devices->count() ?: 'None',
         ] as $label => $value)
@@ -86,6 +87,14 @@
     </tbody>
 </table>
 </div>
+
+@if ($history !== null)
+    <div class="page-head" style="margin:28px 0 0">
+        <h2 style="margin:0">History</h2>
+        <a class="btn small secondary" href="{{ route('admin.audit.index', ['subject' => 'user:'.$user->id]) }}">Full history</a>
+    </div>
+    @include('admin.audit.rows', ['logs' => $history, 'compact' => true])
+@endif
 
 @if (auth()->user()->canAdmin($slug, 'edit') || (auth()->user()->canAdmin($slug, 'delete') && $user->id !== auth()->id()))
     <div class="card danger-zone" style="margin-top:28px">

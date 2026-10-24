@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Accounts\Passwords;
+use App\Services\Audit\AuditTrail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class AuthController extends Controller
         return Auth::check() ? redirect()->route('admin.home') : view('admin.login');
     }
 
-    public function login(Request $request, Passwords $passwords): RedirectResponse
+    public function login(Request $request, Passwords $passwords, AuditTrail $audit): RedirectResponse
     {
         $request->validate(['login' => 'required|string', 'password' => 'required|string']);
 
@@ -37,17 +38,22 @@ class AuthController extends Controller
             && $user->hasAdminAccess();
 
         if (! $allowed) {
+            // Under the name typed, so guessing at one account shows up as such.
+            $audit->record('auth.login_failed', 'Failed admin sign-in as "'.mb_substr($login, 0, 60).'"', $user, [], false, actorName: mb_substr($login, 0, 60));
+
             return back()->withInput($request->only('login'))->withErrors(['login' => 'Incorrect username or password.']);
         }
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $audit->record('auth.login', 'Signed in to the admin', $user, [], $user);
 
         return redirect()->intended(route('admin.home'));
     }
 
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request, AuditTrail $audit): RedirectResponse
     {
+        $audit->record('auth.logout', 'Signed out of the admin', $request->user(), []);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

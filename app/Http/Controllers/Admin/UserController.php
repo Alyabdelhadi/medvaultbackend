@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Lab;
 use App\Models\LabAccount;
 use App\Models\User;
@@ -84,7 +85,7 @@ class UserController extends Controller
             $input['owner_lab_id'] = $managerLab;
         }
 
-        [$user, $errors] = $creator->create($input);
+        [$user, $errors] = $creator->create($input, $request->user());
         if ($user === null) {
             return back()->withInput($request->except('password'))->withErrors($errors)
                 ->with(['status' => 'Please correct the highlighted fields.', 'status_type' => 'error']);
@@ -108,6 +109,10 @@ class UserController extends Controller
             'labNames' => Lab::pluck('title', 'id'),
             'devices' => $user->devices()->orderByDesc('updated_at')->get(),
             'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
+            // The audit log is site-wide, so only those who may read it see this account's part of it.
+            'history' => $request->user()->canAdmin('audit')
+                ? AuditLog::where('subject_type', 'user')->where('subject_id', $user->id)->orderByDesc('id')->limit(10)->get()
+                : null,
         ]);
     }
 
@@ -155,7 +160,7 @@ class UserController extends Controller
             $out = fopen('php://output', 'w');
             // A BOM, so Excel shows non-ASCII names correctly.
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Name', 'Username', 'Email', 'Mobile', 'Registration Date', 'Type'], ',', '"', '');
+            fputcsv($out, ['Name', 'Username', 'Email', 'Mobile', 'Registration Date', 'Type', 'How the account was made'], ',', '"', '');
             foreach ($users as $u) {
                 fputcsv($out, [
                     $u->display_name,
@@ -165,6 +170,7 @@ class UserController extends Controller
                     "'".($u->mobile_number ?? ''),
                     $u->created_at?->format('Y-m-d H:i:s'),
                     $u->functionType(),
+                    $u->createdViaLabel(),
                 ], ',', '"', '');
             }
             fputcsv($out, [], ',', '"', '');
