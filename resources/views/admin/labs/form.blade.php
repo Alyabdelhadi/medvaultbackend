@@ -120,6 +120,10 @@
         <label class="check"><input type="checkbox" name="caps_flags" value="1" {{ $checked('caps_flags') }}> High / Low flags (<code>result_status</code>)</label>
         <label class="check"><input type="checkbox" name="caps_pdf" value="1" {{ $checked('caps_pdf') }}> Report PDFs (<code>pdf_path</code>)</label>
 
+        <h3 style="margin:18px 0 4px;font-size:15px">Radiology</h3>
+        <label class="check"><input type="checkbox" name="radiology_enabled" value="1" {{ $checked('radiology_enabled') }}> Also fetch imaging studies (<code>/radiology</code>)</label>
+        <p class="hint">Studies are listed with this lab's orders under the Radiology category, with the report PDF as their only content. A study counts as ready only once it has a report (<code>report_datetime</code> or <code>pdf_path</code>), never on <code>status</code>, and the first poll after switching this on only records, so past studies do not all alert at once. Leave off until the facility fills in the study name and report fields.</p>
+
         <h3 style="margin:18px 0 4px;font-size:15px">Paid features</h3>
         <label class="check"><input type="checkbox" name="ai_summary" value="1" {{ $checked('ai_summary') }}> <strong>AI summaries</strong></label>
         <p class="hint">Each summary is a billed API call. Off by default, and off everywhere while the global switch on the AI Summary page is off.</p>

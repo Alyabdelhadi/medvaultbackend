@@ -24,6 +24,7 @@ class Lab extends Model
             'caps_flags' => 'boolean',
             'caps_pdf' => 'boolean',
             'ai_summary' => 'boolean',
+            'radiology_enabled' => 'boolean',
         ];
     }
 

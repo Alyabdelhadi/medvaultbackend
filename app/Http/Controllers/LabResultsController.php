@@ -87,6 +87,21 @@ class LabResultsController extends Controller
                     'error' => $failed ? $results->message : null,
                 ];
             }
+
+            // Studies are returned exactly like orders, so the app needs no
+            // change. They have no rows to fetch, so they are always loaded and
+            // never lazily asked for at /results. A radiology outage must not
+            // hide the lab orders already listed.
+            $studies = $this->api->radiology($user, $cfg);
+            if ($studies instanceof LabFailure) {
+                $errors[] = ['lab_id' => $cfg->labId, 'lab_name' => $cfg->labName, 'message' => $studies->message];
+
+                continue;
+            }
+            foreach ($studies as $study) {
+                [$order, $results] = LabRows::radiologyAsOrder($study);
+                $all[] = [...$order, 'capabilities' => LabRows::radiologyCaps($cfg), 'results' => $results, 'results_loaded' => true, 'error' => null];
+            }
         }
 
         usort($all, fn ($a, $b) => strcmp($b['order_datetime'], $a['order_datetime']));

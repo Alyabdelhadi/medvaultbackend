@@ -121,6 +121,45 @@ final class LabApi
         return $out;
     }
 
+    /**
+     * One lab's imaging studies, normalized. Empty for a lab with radiology
+     * off, so callers need not check.
+     *
+     * @return list<array<string, mixed>>|LabFailure
+     */
+    public function radiology(User $user, LabConfig $cfg): array|LabFailure
+    {
+        if (! $cfg->radiology) {
+            return [];
+        }
+
+        $response = $this->get($user, $cfg, 'radiology_path');
+        if ($response instanceof LabFailure) {
+            return $response;
+        }
+        if ($response->status() !== 200) {
+            return new LabFailure(LabFailure::UNREACHABLE, "Radiology system returned HTTP {$response->status()}.");
+        }
+
+        $rows = LabTokenService::decode($response)[$cfg->driver['radiology_key']] ?? null;
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $normalized = LabRows::radiology($row, $cfg, (int) $user->id);
+            if ($normalized['request_nb'] !== '') {
+                $out[] = $normalized;
+            }
+        }
+
+        return $out;
+    }
+
     /** Whether this lab has refused this account often enough to stop asking. */
     public function hasGivenUp(User $user, LabConfig $cfg): bool
     {

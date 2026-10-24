@@ -135,6 +135,12 @@ final class ResultPoller
             $result = $this->pollUserLab($user, $cfg);
             $statuses[] = $result['status'];
             $notified += $result['notified'];
+
+            if ($cfg->radiology) {
+                $result = $this->pollUserRadiology($user, $cfg);
+                $statuses[] = $result['status'];
+                $notified += $result['notified'];
+            }
         }
 
         foreach (['ok', 'seeded', 'skipped', 'error', 'unauthorized'] as $rank) {
@@ -234,6 +240,65 @@ final class ResultPoller
         // Rebuilt from this response, so orders that age out of the lab's
         // list do not grow the map forever.
         $account->forceFill(['seen_status' => $current, 'polled_at' => now(), 'poll_error' => null])->save();
+
+        if ($seeding) {
+            return ['status' => 'seeded', 'notified' => 0];
+        }
+
+        $notified = 0;
+        foreach ($newlyReady as $row) {
+            if ($this->notifyReady($user, $row, $cfg)) {
+                $notified++;
+            }
+        }
+
+        return ['status' => 'ok', 'notified' => $notified];
+    }
+
+    /**
+     * Diffs one user's imaging studies at one lab.
+     *
+     * Independent of ready_signal: a study is ready when it has a report, so
+     * a lab with no usable order status still alerts for studies. Its own
+     * seen map, seeded on its own first poll, so switching radiology on for a
+     * lab whose order map is long seeded does not announce every past study.
+     */
+    public function pollUserRadiology(User $user, LabConfig $cfg): array
+    {
+        $account = LabAccount::firstOrNew(['user_id' => $user->id, 'lab_id' => $cfg->labId]);
+        if ((int) $account->auth_failures >= (int) config('medvault.labs.max_auth_failures')) {
+            return ['status' => 'unauthorized', 'notified' => 0];
+        }
+
+        $studies = $this->api->radiology($user, $cfg);
+        if ($studies instanceof LabFailure) {
+            $this->recordError($user, $cfg, 'Radiology: '.$studies->message);
+
+            return ['status' => $studies->isUnknownAccount() ? 'unauthorized' : 'error', 'notified' => 0];
+        }
+
+        $account = LabAccount::firstOrNew(['user_id' => $user->id, 'lab_id' => $cfg->labId]);
+        $seen = $account->radiology_seen_status;
+        $seeding = ! is_array($seen);
+        $seen = $seen ?? [];
+
+        $current = [];
+        $newlyReady = [];
+
+        foreach ($studies as $row) {
+            $current[$row['request_nb']] = LabRows::radiologyMarker($row);
+
+            if ($seeding || ! $row['is_ready']) {
+                continue;
+            }
+            if (trim((string) ($seen[$row['request_nb']] ?? '')) !== '') {
+                continue;
+            }
+
+            $newlyReady[] = $row;
+        }
+
+        $account->forceFill(['radiology_seen_status' => $current])->save();
 
         if ($seeding) {
             return ['status' => 'seeded', 'notified' => 0];

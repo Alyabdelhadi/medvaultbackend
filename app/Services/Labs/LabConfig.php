@@ -37,6 +37,8 @@ final class LabConfig
         public readonly string $mobileFormat,
         public readonly string $readySignal,
         public readonly array $caps,
+        // Whether to fetch /radiology too. Off for the legacy account.
+        public readonly bool $radiology = false,
     ) {}
 
     /** Null when the lab has no base URL, as before: such a lab has no API. */
@@ -72,6 +74,7 @@ final class LabConfig
                 // switch is on.
                 'ai' => self::aiSummaryEnabled() && (bool) $lab->ai_summary,
             ],
+            radiology: (bool) $lab->radiology_enabled && ! empty(LabDrivers::get($driverKey)['radiology_path']),
         );
     }
 

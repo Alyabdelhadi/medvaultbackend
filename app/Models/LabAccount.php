@@ -24,6 +24,7 @@ class LabAccount extends Model
             'external_token' => 'encrypted',
             'auth_failures' => 'integer',
             'seen_status' => JsonMap::class,
+            'radiology_seen_status' => JsonMap::class,
             'polled_at' => 'datetime',
         ];
     }

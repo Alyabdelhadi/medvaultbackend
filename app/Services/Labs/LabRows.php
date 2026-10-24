@@ -143,6 +143,97 @@ final class LabRows
         return $out;
     }
 
+    /**
+     * What a study can claim, whatever the lab's own settings say. A study is
+     * a report and nothing else: no rows, so no range or flag to interpret,
+     * and nothing an AI summary could be given but a name.
+     */
+    public static function radiologyCaps(LabConfig $cfg): array
+    {
+        return ['ranges' => false, 'flags' => false, 'pdf' => $cfg->caps['pdf'], 'ai' => false];
+    }
+
+    /**
+     * Whether a study has been reported. Judged on the report alone, never on
+     * status: Bekaa's /radiology sends "V" for studies with no report, name or
+     * modality, the hardcoded-literal trap ready_signal exists for. A study
+     * shown as ready with nothing to open would be a claim nobody made.
+     */
+    public static function radiologyIsReady(array $row): bool
+    {
+        return trim((string) ($row['report_datetime'] ?? '')) !== ''
+            || trim((string) ($row['pdf_path'] ?? '')) !== '';
+    }
+
+    /** The marker the poller stores for a study: whichever report field is set. */
+    public static function radiologyMarker(array $row): string
+    {
+        return $row['report_datetime'] !== '' ? $row['report_datetime'] : $row['pdf_path'];
+    }
+
+    /**
+     * One study onto the request keys, tagged kind=radiology. Goes through
+     * request() so its PDFs are signed and listed exactly like an order's.
+     */
+    public static function radiology(array $row, LabConfig $cfg, int $userId = 0): array
+    {
+        $mapped = [];
+        foreach ($cfg->driver['radiology_map'] as $canonical => $aliases) {
+            $mapped[$canonical] = self::pick($row, $aliases);
+        }
+        // The name the X-Ray result category already matches.
+        $mapped['cat_name'] = 'Radiology';
+
+        $out = self::request($mapped, $cfg, $userId);
+        $out['kind'] = 'radiology';
+        $out['modality'] = $mapped['modality'] === null ? '' : Sanitize::textField((string) $mapped['modality']);
+        $out['study_name'] = $mapped['study_name'] === null ? '' : Sanitize::textField((string) $mapped['study_name']);
+        $out['is_ready'] = self::radiologyIsReady($out);
+        $out['ready_known'] = true;
+
+        return $out;
+    }
+
+    /**
+     * A study as the app already reads an order: the request keys only, plus
+     * one result row once it is reported, so it renders like any other result
+     * with no app change. The row is text, never a value: with ranges and
+     * flags off the app draws no gauge and no tick. An unreported study has no
+     * rows, which the app already shows as "not ready yet".
+     *
+     * @return array{0: array<string, mixed>, 1: list<array<string, mixed>>}
+     */
+    public static function radiologyAsOrder(array $study): array
+    {
+        $order = array_diff_key($study, array_flip(['kind', 'modality', 'study_name']));
+        if (! $study['is_ready']) {
+            return [$order, []];
+        }
+
+        $testName = $study['study_name'] !== '' ? $study['study_name']
+            : ($study['modality'] !== '' ? $study['modality'] : 'Radiology report');
+        $text = $study['pdf_url'] !== null
+            ? 'Report available. Open the PDF to read it.'
+            : 'Reported on '.$study['report_datetime'].'.';
+
+        return [$order, [[
+            // The app reads id as a number; '' would fail to parse.
+            'id' => 0,
+            'name' => $study['name'],
+            'birthdate' => $study['birth_date'],
+            'test_name' => $testName,
+            'group_name' => $study['modality'] !== '' ? $study['modality'] : 'Radiology',
+            'unit' => '',
+            'ref_range' => '',
+            'result' => '',
+            'result_txt' => $text,
+            'result_status' => '',
+            'sign' => '',
+            'is_title' => 'N',
+            'cat_name' => 'Radiology',
+        ]]];
+    }
+
     /** The URL the app opens for a report, or null when there is none. */
     public static function pdfUrl(LabConfig $cfg, string $path, int $userId = 0): ?string
     {

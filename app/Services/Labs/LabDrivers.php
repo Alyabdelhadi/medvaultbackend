@@ -55,6 +55,25 @@ final class LabDrivers
                     'is_title' => ['is_title'],
                     'cat_name' => ['cat_name'],
                 ],
+                // Imaging: a second list on the same host, keyed by study and
+                // report-only (there is no per-study rows endpoint). Mapped
+                // onto the request keys so the app reads one shape. Called
+                // only for a lab with radiology_enabled.
+                'radiology_path' => '/radiology',
+                'radiology_key' => 'studies',
+                'radiology_map' => [
+                    'request_nb' => ['study_nb', 'request_nb'],
+                    'order_datetime' => ['order_datetime'],
+                    'status' => ['status'],
+                    'pdf_path' => ['pdf_path'],
+                    'pdf_paths' => ['pdf_paths'],
+                    'report_datetime' => ['report_datetime'],
+                    'name' => ['patient_name', 'name'],
+                    'modality' => ['modality'],
+                    'study_name' => ['study_name'],
+                    'birth_date' => ['birth_date', 'birthdate', 'dob'],
+                    'lab_name' => ['lab_name'],
+                ],
             ],
         ];
     }
