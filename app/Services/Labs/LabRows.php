@@ -195,6 +195,44 @@ final class LabRows
     }
 
     /**
+     * The birth date a study should carry, since /radiology sends none.
+     *
+     * The app splits "my results" from "family" on birth date, and falls back
+     * to an exact name match against the MedVault profile, which rarely spells
+     * a name the way the lab does. So: the date the lab gives the same patient
+     * on one of their orders; failing that, the holder's own profile date when
+     * the study is in the name the lab returned at login; otherwise empty, and
+     * the app's own fallback applies as before.
+     *
+     * @param  list<array<string, mixed>>  $orders  that lab's normalized orders
+     */
+    public static function studyBirthDate(array $study, array $orders, ?string $holderName, string $userDob): string
+    {
+        if ($study['birth_date'] !== '') {
+            return $study['birth_date'];
+        }
+
+        $name = self::nameKey($study['name']);
+        if ($name === '') {
+            return '';
+        }
+
+        foreach ($orders as $order) {
+            if (($order['birth_date'] ?? '') !== '' && self::nameKey((string) $order['name']) === $name) {
+                return $order['birth_date'];
+            }
+        }
+
+        return $holderName !== null && self::nameKey($holderName) === $name ? trim($userDob) : '';
+    }
+
+    /** Case and spacing do not make two people. */
+    private static function nameKey(string $name): string
+    {
+        return strtolower((string) preg_replace('/\s+/', ' ', trim($name)));
+    }
+
+    /**
      * A study as the app already reads an order: the request keys only, plus
      * one result row once it is reported, so it renders like any other result
      * with no app change. The row is text, never a value: with ranges and

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ReadsWordPressParams;
 use App\Http\Middleware\AuthenticateAppToken;
 use App\Http\WpError;
+use App\Models\LabAccount;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use App\Services\Labs\LabApi;
@@ -98,7 +99,10 @@ class LabResultsController extends Controller
 
                 continue;
             }
+            $holder = $studies === [] ? null
+                : LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->value('holder_name');
             foreach ($studies as $study) {
+                $study['birth_date'] = LabRows::studyBirthDate($study, $requests, $holder, (string) $user->dob);
                 [$order, $results] = LabRows::radiologyAsOrder($study);
                 $all[] = [...$order, 'capabilities' => LabRows::radiologyCaps($cfg), 'results' => $results, 'results_loaded' => true, 'error' => null];
             }

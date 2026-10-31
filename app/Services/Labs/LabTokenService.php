@@ -93,7 +93,14 @@ final class LabTokenService
         $token = Sanitize::textField($body['token']);
 
         $account = $this->account($user, $cfg->labId);
-        $account->forceFill(['external_token' => $token, 'poll_error' => null, 'auth_failures' => 0])->save();
+        $account->forceFill(['external_token' => $token, 'poll_error' => null, 'auth_failures' => 0]);
+        // Who the lab says this account is. Kept only when sent, so a lab
+        // that omits it does not erase an earlier one.
+        $holder = Sanitize::textField(is_string($body['name'] ?? null) ? $body['name'] : '');
+        if ($holder !== '') {
+            $account->holder_name = $holder;
+        }
+        $account->save();
 
         // The configured lab is the authority; the name the API reports is
         // used only for the legacy unconfigured account.
