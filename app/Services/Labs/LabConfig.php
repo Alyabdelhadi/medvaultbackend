@@ -45,8 +45,11 @@ final class LabConfig
         public readonly string $radiologyBase = '',
         public readonly string $radiologyPdfBase = '',
         // Which of the account's token columns this config logs in to: '' for
-        // the lab's, 'radiology_' for the radiology server's.
+        // the lab's, 'radiology_' for the radiology server's, 'doctor_' for
+        // the doctor side of a patient who is also a doctor.
         public readonly string $accountPrefix = '',
+        // The account type sent at login; '' means the user's own.
+        public readonly string $loginType = '',
     ) {}
 
     /** Null when the lab has no base URL, as before: such a lab has no API. */
@@ -158,37 +161,50 @@ final class LabConfig
             return $this;
         }
 
-        return new self(
-            labId: $this->labId,
-            labName: $this->labName,
-            enabled: $this->enabled,
-            driverKey: $this->driverKey,
-            driver: $this->driver,
-            base: $this->radiologyBase,
-            pdfBase: $this->radiologyPdfBase,
-            pdfMode: $this->pdfMode,
-            headers: $this->headers,
-            timeout: $this->timeout,
-            priority: $this->priority,
-            mobileFormat: $this->mobileFormat,
-            readySignal: $this->readySignal,
-            caps: $this->caps,
-            radiology: true,
-            orders: false,
-            accountPrefix: 'radiology_',
-        );
+        return $this->with([
+            'base' => $this->radiologyBase,
+            'pdfBase' => $this->radiologyPdfBase,
+            'radiology' => true,
+            'orders' => false,
+            'accountPrefix' => 'radiology_',
+        ]);
+    }
+
+    /**
+     * The same lab, logged in to as a doctor: for a patient who is also a
+     * doctor, whose patient token would read their own orders instead.
+     * Never radiology: the doctor view has none.
+     */
+    public function forDoctorRole(): self
+    {
+        return $this->with(['radiology' => false, 'accountPrefix' => 'doctor_', 'loginType' => 'D']);
     }
 
     /** Whether this is a radiologyEndpoint() for a separate server. */
     public function isRadiologyHost(): bool
     {
-        return $this->accountPrefix !== '';
+        return $this->accountPrefix === 'radiology_';
+    }
+
+    /**
+     * Which login a PDF link was minted under, signed into /lab-file links:
+     * '' for the lab's own, else 'radiology' or 'doctor'.
+     */
+    public function source(): string
+    {
+        return rtrim($this->accountPrefix, '_');
     }
 
     /** The lab_accounts column holding this config's token. */
     public function tokenColumn(): string
     {
-        return $this->isRadiologyHost() ? 'radiology_token' : 'external_token';
+        return $this->accountPrefix === '' ? 'external_token' : $this->accountPrefix.'token';
+    }
+
+    /** A copy with some fields replaced. */
+    private function with(array $changes): self
+    {
+        return new self(...array_merge(get_object_vars($this), $changes));
     }
 
     /** A per-host lab_accounts column: auth_failures or holder_name. */

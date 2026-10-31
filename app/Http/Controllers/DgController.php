@@ -23,6 +23,11 @@ class DgController extends Controller
         $errors = [];
 
         foreach ($labs->active() as $cfg) {
+            // A patient who is also a doctor reads these with their doctor
+            // login; their patient token would return their own orders.
+            if ($user->isPatientAndDoctor()) {
+                $cfg = $cfg->forDoctorRole();
+            }
             if ($api->hasGivenUp($user, $cfg)) {
                 continue;
             }

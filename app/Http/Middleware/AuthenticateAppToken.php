@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Http\WpError;
+use App\Models\AppSession;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use App\Support\WordPress\Sanitize;
@@ -21,23 +22,31 @@ class AuthenticateAppToken
 
     public function handle(Request $request, Closure $next): Response
     {
-        $user = self::userFrom($request, $this->tokens);
-        if ($user === null) {
+        $session = self::sessionFrom($request, $this->tokens);
+        if ($session === null) {
             throw WpError::unauthorized();
         }
 
+        $user = $session->user;
         $request->setUserResolver(fn () => $user);
+        // Which device this is, for the connected-devices list and logout.
+        $request->attributes->set('app_session', $session);
 
         return $next($request);
     }
 
     public static function userFrom(Request $request, ApiTokens $tokens): ?User
     {
+        return self::sessionFrom($request, $tokens)?->user;
+    }
+
+    public static function sessionFrom(Request $request, ApiTokens $tokens): ?AppSession
+    {
         $header = (string) $request->header('Authorization', '');
         if (! str_starts_with($header, 'Bearer ')) {
             return null;
         }
 
-        return $tokens->resolve(Sanitize::textField(trim(substr($header, 7))));
+        return $tokens->session(Sanitize::textField(trim(substr($header, 7))));
     }
 }

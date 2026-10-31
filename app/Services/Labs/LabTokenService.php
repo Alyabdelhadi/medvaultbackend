@@ -50,7 +50,7 @@ final class LabTokenService
         try {
             $response = Http::timeout($cfg->timeout)
                 ->withHeaders(['Content-Type' => 'application/json', ...$cfg->headers])
-                ->withBody(json_encode(['username' => $username, 'type' => $user->functionType()]), 'application/json')
+                ->withBody(json_encode(['username' => $username, 'type' => $cfg->loginType ?: $user->functionType()]), 'application/json')
                 ->post($cfg->url('login_path'));
         } catch (ConnectionException) {
             return new LabFailure(LabFailure::UNREACHABLE, 'Could not connect to the lab system. Please try again later.');
@@ -190,6 +190,7 @@ final class LabTokenService
     /** Per host: a throttled radiology server must not stall the lab's logins. */
     private static function backoffKeyFor(LabConfig $cfg): string
     {
+        // The doctor login goes to the lab's own host, so it shares its window.
         return self::backoffKey($cfg->labId).($cfg->isRadiologyHost() ? '_radiology' : '');
     }
 

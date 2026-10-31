@@ -26,6 +26,8 @@ final class Profile
             'insurance_image' => $user->insurance_image ?: null,
             'blood_type' => $user->blood_type ?: null,
             'function_type' => $user->functionType(),
+            // Profiles the app can switch between, primary first.
+            'roles' => $user->roles(),
             // Feature flags the app reads at sign-in and on profile refresh.
             'ai_summary_enabled' => LabConfig::aiSummaryEnabled(),
         ];

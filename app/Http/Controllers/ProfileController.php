@@ -124,15 +124,18 @@ class ProfileController extends Controller
 
         // Collected from the saves below, with the password shown only as changed.
         $audit->watch();
-        $newToken = DB::transaction(function () use ($user, $changes, $password, $passwords, $tokens) {
+        $newToken = DB::transaction(function () use ($user, $changes, $password, $passwords, $tokens, $request) {
             $user->forceFill($changes)->save();
             if ($password === '') {
                 return null;
             }
             $passwords->set($user, $password);
 
-            // Changing the password ends the other sessions; this one gets a new token.
-            return $tokens->issue($user);
+            // Changing the password ends every other session; this device
+            // gets a new token and stays signed in.
+            $tokens->revoke($user);
+
+            return $tokens->issue($user, $request);
         });
 
         $audit->stop();

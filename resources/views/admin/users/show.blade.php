@@ -20,7 +20,7 @@
             <div>
                 <h1>{{ $name }}</h1>
                 <div class="person-meta">
-                    <span class="pill">{{ \App\Services\Admin\UserDirectory::TYPES[$user->functionType()] ?? 'Patient' }}</span>
+                    <span class="pill">{{ \App\Services\Admin\AdminUserCreator::FORM_TYPES[\App\Services\Admin\AdminUserCreator::formType($user)] ?? 'Patient' }}</span>
                     <span>{{ $user->mobile_number ?: 'No mobile number' }}</span>
                     @if ($user->email)<span>{{ $user->email }}</span>@endif
                 </div>
@@ -40,7 +40,12 @@
             'Blood type' => $user->blood_type,
             'Registered' => $user->created_at?->format('M j, Y'),
             'How the account was made' => $user->createdViaLabel(),
-            'Uses the app' => $user->api_token_hash ? 'Yes, signed in' : 'Not signed in',
+            'Uses the app' => ($signedIn = \App\Models\AppSession::where('user_id', $user->id)->count()) > 0
+                ? 'Signed in on '.$signedIn.' '.\Illuminate\Support\Str::plural('device', $signedIn)
+                : ($user->api_token_hash ? 'Yes, signed in' : 'Not signed in'),
+            'Labs' => $user->functionType() === 'P' && ! $user->also_doctor ? null : collect([$user->dg_lab_id])
+                ->merge(\Illuminate\Support\Facades\DB::table('user_labs')->where('user_id', $user->id)->pluck('lab_id'))
+                ->filter()->unique()->map(fn ($id) => $labNames[$id] ?? 'Lab #'.$id)->implode(', '),
             'Phones for notifications' => $devices->count() ?: 'None',
         ] as $label => $value)
             <div><dt>{{ $label }}</dt><dd>{{ $value ?: '—' }}</dd></div>

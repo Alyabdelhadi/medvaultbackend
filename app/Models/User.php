@@ -47,6 +47,7 @@ class User extends Authenticatable
             'admin_group_id' => 'integer',
             'owner_lab_id' => 'integer',
             'dg_lab_id' => 'integer',
+            'also_doctor' => 'boolean',
             'created_by_id' => 'integer',
         ];
     }
@@ -89,6 +90,23 @@ class User extends Authenticatable
     public function functionType(): string
     {
         return $this->function_type ?: 'P';
+    }
+
+    /** A patient who is also a doctor: one account, two lab logins. */
+    public function isPatientAndDoctor(): bool
+    {
+        return $this->functionType() === 'P' && (bool) $this->also_doctor;
+    }
+
+    /**
+     * The profiles the app may switch between, primary first. function_type
+     * stays the primary, so a build that knows one role sees the patient.
+     *
+     * @return list<string>
+     */
+    public function roles(): array
+    {
+        return $this->isPatientAndDoctor() ? ['P', 'D'] : [$this->functionType()];
     }
 
     public function labAccounts(): HasMany

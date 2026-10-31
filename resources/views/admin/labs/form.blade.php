@@ -140,13 +140,17 @@
     <div class="actions sticky-actions">
         <button class="btn" type="submit">{{ $lab->exists ? 'Update Lab' : 'Create Lab' }}</button>
         <a class="btn secondary" href="{{ route('admin.labs.index') }}">Cancel</a>
+        @if ($lab->exists)
+            {{-- In the same bar, at the far end. It submits its own form below:
+                 forms cannot nest, and this one must not send the lab's fields. --}}
+            <button class="btn {{ $lab->status === 'trash' ? 'secondary' : 'danger' }}" type="submit" form="mv-lab-trash" style="margin-inline-start:auto">{{ $lab->status === 'trash' ? 'Restore' : 'Move to Trash' }}</button>
+        @endif
     </div>
 </form>
 
 @if ($lab->exists)
-    <form method="post" action="{{ $lab->status === 'trash' ? route('admin.labs.restore', $lab) : route('admin.labs.trash', $lab) }}" @if ($lab->status !== 'trash') data-confirm="Move this lab to the trash? It disappears from the app." data-confirm-action="Move to trash" @endif>
+    <form id="mv-lab-trash" method="post" action="{{ $lab->status === 'trash' ? route('admin.labs.restore', $lab) : route('admin.labs.trash', $lab) }}" @if ($lab->status !== 'trash') data-confirm="Move this lab to the trash? It disappears from the app." data-confirm-detail="You can restore it from the trash later." data-confirm-action="Move to trash" @endif>
         @csrf
-        <button class="btn {{ $lab->status === 'trash' ? 'secondary' : 'danger' }} small" type="submit">{{ $lab->status === 'trash' ? 'Restore' : 'Move to Trash' }}</button>
     </form>
 @endif
 @endsection

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ReadsWordPressParams;
 use App\Http\WpError;
+use App\Models\Lab;
 use App\Models\LabAccount;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
@@ -61,6 +62,8 @@ class AuthController extends Controller
         $idImage = Sanitize::urlRaw(trim(Sanitize::urlRaw($this->param($request, 'id_image') ?? '')));
         $insuranceImage = Sanitize::urlRaw(trim(Sanitize::urlRaw($this->param($request, 'insurance_image') ?? '')));
         $bloodType = $this->text($request, 'blood_type');
+        // "I'm also a doctor": the same account gets a doctor side.
+        $alsoDoctor = filter_var($this->param($request, 'also_doctor'), FILTER_VALIDATE_BOOLEAN);
 
         if ($first === '') {
             throw new WpError('missing_first_name', 'First name is required.');
@@ -116,8 +119,9 @@ class AuthController extends Controller
             'id_image' => $idImage ?: null,
             'insurance_image' => $insuranceImage ?: null,
             'blood_type' => $bloodType ?: null,
+            'also_doctor' => $alsoDoctor,
         ]);
-        $this->audit->record('account.signup', 'Signed up in the app', $user, [], $user);
+        $this->audit->record('account.signup', 'Signed up in the app'.($alsoDoctor ? ' as a patient and doctor' : ''), $user, [], $user);
 
         return response()->json([
             'success' => true,
@@ -148,7 +152,7 @@ class AuthController extends Controller
         $issued = $this->labTokens->refreshAll($user, $mobile);
         $primary = $issued[0] ?? null;
 
-        $token = $this->tokens->issue($user);
+        $token = $this->tokens->issue($user, $request);
 
         return response()->json([
             'success' => true,
@@ -176,7 +180,15 @@ class AuthController extends Controller
         $email = trim(Sanitize::email($this->param($request, 'email')));
         $password = $this->raw($request, 'password');
         $type = strtoupper($this->text($request, 'function_type'));
-        $labId = abs((int) $this->param($request, 'lab_id'));
+        // Every lab they work with: lab_ids (a list), or the single lab_id an
+        // older build sends. Only labs that exist are kept; the first is the
+        // primary, dg_lab_id.
+        $wanted = $this->param($request, 'lab_ids');
+        $wanted = is_array($wanted) ? $wanted : [$this->param($request, 'lab_id')];
+        $wanted = array_values(array_unique(array_filter(array_map(fn ($id) => abs((int) $id), $wanted))));
+        $known = $wanted === [] ? [] : Lab::whereIn('id', $wanted)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $labIds = array_values(array_intersect($wanted, $known));
+        $labId = $labIds[0] ?? 0;
 
         if ($first === '') {
             throw new WpError('missing_first_name', 'First name is required.');
@@ -193,8 +205,10 @@ class AuthController extends Controller
         if (strlen($password) < 6) {
             throw new WpError('invalid_password', 'Password must be at least 6 characters.');
         }
-        if (! in_array($type, ['D', 'G'], true)) {
-            throw new WpError('invalid_function_type', "function_type must be 'D' (Doctor) or 'G' (Guarantor).");
+        // PD: a doctor who is also a patient, stored as a patient with a
+        // doctor side, exactly as the admin's Patient + Doctor.
+        if (! in_array($type, ['D', 'G', 'PD'], true)) {
+            throw new WpError('invalid_function_type', "function_type must be 'D' (Doctor), 'G' (Guarantor) or 'PD' (Patient and Doctor).");
         }
         if ($this->users->emailOwner($email) !== null) {
             throw new WpError('email_exists', 'This email address is already registered.', 409);
@@ -205,16 +219,19 @@ class AuthController extends Controller
 
         $username = $this->users->generateUsername($first, $last);
         $user = $this->createUser($username, $password, $email, $first, $last, $phone, [
-            'function_type' => $type,
+            'function_type' => $type === 'PD' ? 'P' : $type,
+            'also_doctor' => $type === 'PD',
             'dg_lab_id' => $labId > 0 ? $labId : null,
         ]);
-        $this->audit->record('account.signup', 'Signed up in the app as a '.($type === 'D' ? 'doctor' : 'guarantor'), $user, [], $user);
+        DB::table('user_labs')->insert(array_map(fn ($id) => ['user_id' => $user->id, 'lab_id' => $id], $labIds));
+        $role = ['D' => 'doctor', 'G' => 'guarantor', 'PD' => 'patient and doctor'][$type];
+        $this->audit->record('account.signup', "Signed up in the app as a {$role}", $user, [], $user);
 
         // Log in at every lab now, so the tokens are there on first use.
         $issued = $this->labTokens->refreshAll($user, $phone);
         $primary = $issued[0] ?? null;
 
-        $token = $this->tokens->issue($user);
+        $token = $this->tokens->issue($user, $request);
 
         return response()->json([
             'success' => true,
@@ -261,7 +278,7 @@ class AuthController extends Controller
             $user->devices()->delete();
             LabAccount::where('user_id', $user->id)
                 ->whereIn('lab_id', array_map(fn ($cfg) => $cfg->labId, $this->labs->active()))
-                ->update(['auth_failures' => 0, 'radiology_auth_failures' => 0]);
+                ->update(['auth_failures' => 0, 'radiology_auth_failures' => 0, 'doctor_auth_failures' => 0]);
         });
         $this->audit->record('account.password_reset', 'Reset their password with an SMS code', $user, [], $user);
 

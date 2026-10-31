@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\Mobile;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The Patients / Doctors / Guarantors lists, from medvault_get_users_by_type().
@@ -38,6 +39,8 @@ final class UserDirectory
         return $query->where(function (Builder $q) use ($labId) {
             $q->where('owner_lab_id', $labId)
                 ->orWhere('dg_lab_id', $labId)
+                // Every lab a doctor or guarantor signed up with, not only the first.
+                ->orWhereIn('id', DB::table('user_labs')->select('user_id')->where('lab_id', $labId))
                 ->orWhereIn('id', LabAccount::select('user_id')->where('lab_id', $labId)->whereNotNull('external_token'));
         });
     }
@@ -57,10 +60,15 @@ final class UserDirectory
     {
         $query = User::query();
 
-        // An unset type has always been a patient.
-        $type === 'P'
-            ? $query->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
-            : $query->where('function_type', $type);
+        // An unset type has always been a patient. A patient who is also a
+        // doctor is listed under both.
+        match ($type) {
+            'P' => $query->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type')),
+            'D' => $query->where(fn ($q) => $q->where('function_type', 'D')->orWhere(
+                fn ($q) => $q->where('also_doctor', true)->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
+            )),
+            default => $query->where('function_type', $type),
+        };
 
         // Admin accounts are listed under Admin Accounts, not with the app's users.
         self::withoutStaff($query);

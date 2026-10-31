@@ -24,6 +24,18 @@ final class AdminUserCreator
 {
     public const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+    /**
+     * What the form offers. PD is stored as a patient with also_doctor, so it
+     * is not a function type of its own.
+     */
+    public const FORM_TYPES = ['P' => 'Patient', 'PD' => 'Patient + Doctor', 'D' => 'Doctor', 'G' => 'Guarantor'];
+
+    /** The form's type code for an existing account. */
+    public static function formType(User $user): string
+    {
+        return $user->isPatientAndDoctor() ? 'PD' : $user->functionType();
+    }
+
     public function __construct(
         private readonly UserLookup $users,
         private readonly Passwords $passwords,
@@ -113,8 +125,8 @@ final class AdminUserCreator
         $errors = [];
 
         $type = strtoupper(trim((string) ($input['function_type'] ?? '')));
-        if (! isset(UserDirectory::TYPES[$type])) {
-            $errors['function_type'] = 'Choose Patient, Doctor or Guarantor.';
+        if (! isset(self::FORM_TYPES[$type])) {
+            $errors['function_type'] = 'Choose Patient, Patient + Doctor, Doctor or Guarantor.';
             $type = 'P';
         }
 
@@ -197,7 +209,8 @@ final class AdminUserCreator
             'display_name' => "{$f['first']} {$f['last']}",
             'first_name' => $f['first'],
             'last_name' => $f['last'],
-            'function_type' => $f['type'],
+            'function_type' => $f['type'] === 'PD' ? 'P' : $f['type'],
+            'also_doctor' => $f['type'] === 'PD',
             'mobile_number' => $f['mobile'],
             ...Mobile::indexColumns($f['mobile']),
             'dob' => $f['dob'] ?: null,

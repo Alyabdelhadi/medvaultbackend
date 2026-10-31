@@ -124,6 +124,35 @@ class RegisterTest extends ApiTestCase
         $this->postJson(self::API.'/dg/register', [
             'first_name' => 'Sami', 'last_name' => 'Khoury', 'phone_number' => '71234567',
             'email' => 'sami@clinic.test', 'password' => 'secret12', 'function_type' => 'P',
-        ])->assertStatus(400)->assertJsonPath('message', "function_type must be 'D' (Doctor) or 'G' (Guarantor).");
+        ])->assertStatus(400)->assertJsonPath('message', "function_type must be 'D' (Doctor), 'G' (Guarantor) or 'PD' (Patient and Doctor).");
+    }
+
+    public function test_doctor_sign_up_can_be_a_patient_too(): void
+    {
+        $this->lab(5, 'Verdun Medical Center');
+        Http::fake(['*' => Http::response(['success' => true, 'token' => 'p-tok'])]);
+
+        $this->postJson(self::API.'/dg/register', [
+            'first_name' => 'Sami', 'last_name' => 'Khoury', 'phone_number' => '71234567',
+            'email' => 'sami@clinic.test', 'password' => 'secret12', 'function_type' => 'pd', 'lab_id' => 5,
+        ])->assertOk()
+            ->assertJsonPath('data.function_type', 'P')
+            ->assertJsonPath('data.roles', ['P', 'D']);
+
+        $user = User::where('username', 'samikhoury')->firstOrFail();
+        $this->assertTrue($user->isPatientAndDoctor());
+        $this->assertSame(5, $user->dg_lab_id);
+        // Signed in at the lab as the patient; the doctor login comes on first use.
+        Http::assertSent(fn ($r) => $r->body() === '{"username":"71234567","type":"P"}');
+    }
+
+    public function test_patient_sign_up_can_be_a_doctor_too(): void
+    {
+        $this->postJson(self::API.'/register', $this->payload(['also_doctor' => true]))->assertOk()
+            ->assertJsonPath('data.function_type', 'P')
+            ->assertJsonPath('data.roles', ['P', 'D']);
+
+        $this->postJson(self::API.'/register', $this->payload(['username' => 'other', 'mobile_number' => '+96170111222']))
+            ->assertJsonPath('data.roles', ['P']);
     }
 }

@@ -87,6 +87,7 @@ class RadiologyTest extends ApiTestCase
         $this->assertSame('CT', $row['group_name']);
         $this->assertSame('Radiology', $row['cat_name']);
         $this->assertSame('Report available. Open the PDF to read it.', $row['result_txt']);
+        $this->assertSame('report', $row['kind']);
         $this->assertSame(0, $row['id']);
         $this->assertSame('', $row['result_status']);
         $this->assertSame('', $row['ref_range']);

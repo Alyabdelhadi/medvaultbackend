@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Http\Controllers\Admin\UserController;
 use App\Models\AdminGroup;
 use App\Models\LabAccount;
 use App\Models\User;
@@ -21,7 +22,7 @@ class UsersAdminTest extends AdminTestCase
     {
         $this->actingAs($this->admin());
 
-        $this->post('/admin/patients', $this->newPatient(['blood_type' => 'O+', 'dob' => '1990-07-25']))->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient(['blood_type' => 'O+', 'dob' => '1990-07-25']))->assertOk();
         $user = User::where('username', 'ranahaddad')->firstOrFail();
 
         $this->assertSame(['9613123456', 'P', 'O+', 'Rana Haddad'], [$user->mobile_e164, $user->function_type, $user->blood_type, $user->display_name]);
@@ -35,7 +36,7 @@ class UsersAdminTest extends AdminTestCase
     public function test_validation_and_duplicate_numbers(): void
     {
         $this->actingAs($this->admin());
-        $this->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient())->assertOk();
 
         $this->from('/admin/patients/new')->post('/admin/patients', $this->newPatient(['mobile_number' => '+96103123456', 'password' => '123', 'email' => 'no', 'gender' => 'x', 'dob' => '2999-01-01']))
             ->assertRedirect('/admin/patients/new')
@@ -55,7 +56,8 @@ class UsersAdminTest extends AdminTestCase
         $this->actingAs($this->admin());
 
         $this->post('/admin/patients', $this->newPatient(['function_type' => 'D', 'dg_lab_id' => '5', 'mobile_number' => '71234567']))
-            ->assertRedirectContains('/admin/doctors?created=');
+            // The slip page links to the account on the Doctors list.
+            ->assertOk()->assertSee('/admin/doctors/', false);
         $this->assertSame(5, User::where('function_type', 'D')->value('dg_lab_id'));
     }
 
@@ -65,7 +67,7 @@ class UsersAdminTest extends AdminTestCase
         $this->lab(9, 'Bekaa Hospital');
         $this->actingAs($this->manager(9));
 
-        $this->post('/admin/doctors', $this->newPatient(['function_type' => 'D', 'dg_lab_id' => '5', 'owner_lab_id' => '5', 'mobile_number' => '71234567']))->assertRedirect();
+        $this->post('/admin/doctors', $this->newPatient(['function_type' => 'D', 'dg_lab_id' => '5', 'owner_lab_id' => '5', 'mobile_number' => '71234567']))->assertOk();
 
         $doctor = User::where('function_type', 'D')->sole();
         $this->assertSame([9, 9], [$doctor->dg_lab_id, $doctor->owner_lab_id]);
@@ -121,18 +123,18 @@ class UsersAdminTest extends AdminTestCase
     {
         $this->actingAs($this->admin());
 
-        $this->get('/admin/patients/new')->assertOk()->assertSee('<option value="961" selected>', false)->assertSee('Qatar +974');
+        $this->get('/admin/patients/new')->assertOk()->assertSee('value="961" selected>', false)->assertSee('title="Qatar" value="974"', false);
 
-        $this->post('/admin/patients', $this->newPatient(['mobile_cc' => '974', 'mobile_number' => '7053 6332']))->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient(['mobile_cc' => '974', 'mobile_number' => '7053 6332']))->assertOk();
         $qatar = User::firstWhere('mobile_e164', '97470536332');
         $this->assertSame('+97470536332', $qatar?->mobile_number);
 
         // Lebanon with the trunk zero, as patients write 03 numbers.
-        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Ali', 'mobile_cc' => '961', 'mobile_number' => '03 123 456']))->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Ali', 'mobile_cc' => '961', 'mobile_number' => '03 123 456']))->assertOk();
         $this->assertSame('9613123456', User::firstWhere('first_name', 'Ali')->mobile_e164);
 
         // A number typed with its own country code keeps it.
-        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Sara', 'mobile_cc' => '961', 'mobile_number' => '+971 50 123 4567']))->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'Sara', 'mobile_cc' => '961', 'mobile_number' => '+971 50 123 4567']))->assertOk();
         $this->assertSame('971501234567', User::firstWhere('first_name', 'Sara')->mobile_e164);
 
         // The same number again, typed differently, is still a duplicate.
@@ -151,7 +153,7 @@ class UsersAdminTest extends AdminTestCase
     {
         $this->lab(9, 'Bekaa Hospital');
         $this->actingAs($this->admin());
-        $this->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $this->post('/admin/patients', $this->newPatient())->assertOk();
         $rana = User::firstWhere('first_name', 'Rana');
         $other = User::factory()->create(['email' => 'taken@x.test', 'mobile_number' => '+96170111222', 'mobile_e164' => '96170111222']);
         LabAccount::create(['user_id' => $rana->id, 'lab_id' => 9, 'external_token' => 't', 'seen_status' => ['1' => 'V']]);
@@ -200,5 +202,41 @@ class UsersAdminTest extends AdminTestCase
         // No edit permission on patients.
         $this->get("/admin/patients/{$patient->id}/edit")->assertForbidden();
         $this->get('/admin/patients')->assertDontSee('/edit');
+    }
+
+    public function test_add_offers_patient_and_doctor_and_prints_the_slip(): void
+    {
+        $this->actingAs($this->admin());
+        $this->get('/admin/patients/new')->assertOk()
+            ->assertSee('Patient + Doctor')->assertSee('PRINT PREVIEW')->assertSee('Add &amp; Print', false);
+
+        $this->post('/admin/patients', $this->newPatient([
+            'function_type' => 'PD', 'mobile_cc' => '961', 'mobile_number' => '70143335', 'password' => 'Lpgnx7VW',
+            'dob_d' => '7', 'dob_m' => '3', 'dob_y' => '85', 'gender' => 'female', 'lab_id' => '5',
+        ]))->assertOk()
+            // The slip: the name, the number as patients read it, the password.
+            ->assertSee('Rana Haddad')->assertSee('70 143 335')->assertSee('Lpgnx7VW');
+
+        $user = User::firstWhere('mobile_e164', '96170143335');
+        $this->assertSame(['P', true, '1985-03-07', 'female', 5, 5], [
+            $user->function_type, $user->also_doctor, $user->dob, $user->gender, $user->owner_lab_id, $user->dg_lab_id,
+        ]);
+        // Listed under both, and edited as what it is.
+        $this->get('/admin/patients')->assertSee('Rana Haddad');
+        $this->get('/admin/doctors')->assertSee('Rana Haddad');
+        $this->get("/admin/patients/{$user->id}/edit")->assertSee('<option value="PD" selected>', false);
+        // The password exists only in that response.
+        $this->assertNull(session()->getOldInput('password'));
+    }
+
+    public function test_dob_boxes_follow_the_two_digit_rule_and_reject_impossible_dates(): void
+    {
+        $this->assertSame('2007-01-02', UserController::dobFromParts('2', '1', '07'));
+        $this->assertSame('1999-12-31', UserController::dobFromParts('31', '12', '1999'));
+        $this->assertNull(UserController::dobFromParts('', '', ''));
+
+        $this->actingAs($this->admin());
+        $this->post('/admin/patients', $this->newPatient(['dob_d' => '31', 'dob_m' => '02', 'dob_y' => '1990']))
+            ->assertSessionHasErrors(['dob']);
     }
 }

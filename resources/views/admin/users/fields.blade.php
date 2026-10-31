@@ -14,8 +14,8 @@
 @endphp
 <label for="mv-type">Type</label>
 <select name="function_type" id="mv-type">
-    @foreach (\App\Services\Admin\UserDirectory::TYPES as $code => $label)
-        <option value="{{ $code }}" @selected(old('function_type', $person?->functionType() ?? $type) === $code)>{{ $label }}</option>
+    @foreach (\App\Services\Admin\AdminUserCreator::FORM_TYPES as $code => $label)
+        <option value="{{ $code }}" @selected(old('function_type', $person ? \App\Services\Admin\AdminUserCreator::formType($person) : $type) === $code)>{{ $label }}</option>
     @endforeach
 </select>{!! $err('function_type') !!}
 <div class="grid">

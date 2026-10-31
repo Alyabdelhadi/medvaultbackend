@@ -138,6 +138,10 @@ class LabResultsController extends Controller
         if ($cfg === null) {
             throw new WpError('lab_not_found', 'Unknown lab.', 404);
         }
+        // as=D: a patient-and-doctor reading an order from their doctor view.
+        if (strtoupper((string) $request->input('as', '')) === 'D' && $request->user()->isPatientAndDoctor()) {
+            $cfg = $cfg->forDoctorRole();
+        }
 
         $results = $this->api->results($request->user(), $cfg, $requestNb);
         if ($results instanceof LabFailure) {
@@ -196,10 +200,14 @@ class LabResultsController extends Controller
         }
 
         $cfg = $this->labs->find($labId);
-        if ($src !== '') {
+        $cfg = match ($src) {
+            '' => $cfg,
             // A study's report, from the lab's separate radiology server.
-            $cfg = $src === 'radiology' && $cfg?->hasSeparateRadiology() ? $cfg->radiologyEndpoint() : null;
-        }
+            'radiology' => $cfg?->hasSeparateRadiology() ? $cfg->radiologyEndpoint() : null,
+            // A report a patient-and-doctor opened as the doctor.
+            'doctor' => $user?->isPatientAndDoctor() ? $cfg?->forDoctorRole() : null,
+            default => null,
+        };
         if ($cfg === null || ! in_array($cfg->pdfMode, ['endpoint', 'static_proxy'], true)) {
             throw new WpError('lab_file_unavailable', 'This lab does not serve files through MedVault.', 404);
         }

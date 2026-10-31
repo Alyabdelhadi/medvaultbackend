@@ -61,21 +61,35 @@ class UserController extends Controller
 
     public function create(Request $request, string $slug): View
     {
-        $type = strtoupper((string) $request->query('type', $this->type($slug)));
+        $type = $this->type($slug);
+        $formType = strtoupper((string) $request->query('type', $type));
 
         return view('admin.users.create', [
             'slug' => $slug,
-            'type' => isset(UserDirectory::TYPES[$type]) ? $type : $this->type($slug),
+            'type' => $type,
+            'formType' => isset(AdminUserCreator::FORM_TYPES[$formType]) ? $formType : $type,
+            'suggestedPassword' => self::newPassword(),
             'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
             'managerLab' => UserDirectory::scopeFor($request->user()),
         ]);
     }
 
-    public function store(Request $request, string $slug, AdminUserCreator $creator): RedirectResponse
+    public function store(Request $request, string $slug, AdminUserCreator $creator): RedirectResponse|View
     {
         $this->type($slug);
         $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'username', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id', 'owner_lab_id']);
-        $input['mobile_number'] = self::withCountry((string) $request->input('mobile_cc', ''), (string) ($input['mobile_number'] ?? ''));
+        $nationalMobile = trim((string) ($input['mobile_number'] ?? ''));
+        $cc = (string) $request->input('mobile_cc', '');
+        $input['mobile_number'] = self::withCountry($cc, $nationalMobile);
+        $input['dob'] ??= self::dobFromParts($request->input('dob_d'), $request->input('dob_m'), $request->input('dob_y'));
+
+        // One Lab field on Add: the patient's lab, or the lab a doctor or
+        // guarantor is attached to.
+        $labId = (int) $request->input('lab_id', 0);
+        if ($labId > 0) {
+            $input['owner_lab_id'] ??= $labId;
+            $input['dg_lab_id'] ??= $labId;
+        }
 
         // A lab manager's accounts belong to their lab, whatever the form says:
         // the lab field is a plain number in the markup.
@@ -87,14 +101,73 @@ class UserController extends Controller
 
         [$user, $errors] = $creator->create($input, $request->user());
         if ($user === null) {
+            // Not the password: the form suggests a new one, and the preview
+            // shows whichever is in the field.
             return back()->withInput($request->except('password'))->withErrors($errors)
                 ->with(['status' => 'Please correct the highlighted fields.', 'status_type' => 'error']);
         }
 
-        // Land on the list that contains the new account.
-        $listSlug = array_search($user->functionType(), self::SLUGS, true);
+        // The slip, rendered here rather than after a redirect: the password
+        // exists only in this request and must not be parked in the session.
+        $labs = Lab::pluck('title', 'id');
+        $slipLab = $labs[$user->dg_lab_id ?: $user->owner_lab_id] ?? null;
 
-        return redirect()->route('admin.users.index', ['slug' => $listSlug, 'created' => $user->id]);
+        return view('admin.users.created', [
+            'slug' => array_search($user->functionType(), self::SLUGS, true),
+            'user' => $user,
+            'slipName' => trim("{$user->first_name} {$user->last_name}"),
+            'slipLab' => $slipLab,
+            'slipMobile' => self::slipMobile($cc, $nationalMobile, (string) $user->mobile_number),
+            'slipPassword' => (string) $input['password'],
+            'slipDoctor' => in_array($user->functionType(), ['D', 'G'], true),
+        ]);
+    }
+
+    /** An 8-character password readable from paper: no 0/O or 1/l/I. */
+    public static function newPassword(): string
+    {
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+        $out = '';
+        for ($i = 0; $i < 8; $i++) {
+            $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Day, month and year boxes as Y-m-d, or null when all are empty. A
+     * two-digit year after this one is last century: "85" is 1985. An
+     * impossible date is passed on as typed, for the creator to reject.
+     */
+    public static function dobFromParts(mixed $day, mixed $month, mixed $year): ?string
+    {
+        [$d, $m, $y] = array_map(fn ($v) => preg_replace('/\D/', '', (string) $v), [$day, $month, $year]);
+        if ($d === '' && $m === '' && $y === '') {
+            return null;
+        }
+        if (strlen($y) === 2) {
+            $y = (string) (((int) $y > (int) date('y') ? 1900 : 2000) + (int) $y);
+        }
+
+        return sprintf('%s-%s-%s', $y, str_pad($m, 2, '0', STR_PAD_LEFT), str_pad($d, 2, '0', STR_PAD_LEFT));
+    }
+
+    /** The number as the slip shows it; mirrors mvSlipMobile() in the slip. */
+    public static function slipMobile(string $cc, string $national, string $stored): string
+    {
+        $digits = preg_replace('/\D/', '', $national);
+        // Typed with its own "+" or "00": print what was stored.
+        if ($digits === '' || str_starts_with(trim($national), '+') || str_starts_with($digits, '00')) {
+            return $stored;
+        }
+        $grouped = match (strlen($digits)) {
+            8 => preg_replace('/^(\d{2})(\d{3})(\d{3})$/', '$1 $2 $3', $digits),
+            7 => preg_replace('/^(\d)(\d{3})(\d{3})$/', '$1 $2 $3', $digits),
+            default => trim(chunk_split($digits, 3, ' ')),
+        };
+
+        return $cc !== '' && $cc !== '961' ? "+{$cc} {$grouped}" : $grouped;
     }
 
     public function show(Request $request, string $slug, User $user): View

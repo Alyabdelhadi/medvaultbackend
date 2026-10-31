@@ -9,6 +9,7 @@ use App\Http\Controllers\LabResultsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OtpController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SessionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,4 +66,10 @@ Route::middleware('app.token')->group(function () {
     Route::post('notifications/read', [NotificationController::class, 'read']);
     Route::post('notifications/delete', [NotificationController::class, 'delete']);
     Route::post('notifications/clear', [NotificationController::class, 'clear']);
+
+    // Signed-in devices.
+    Route::get('sessions', [SessionController::class, 'index']);
+    Route::post('sessions/revoke', [SessionController::class, 'revoke']);
+    Route::post('sessions/revoke-others', [SessionController::class, 'revokeOthers']);
+    Route::post('logout', [SessionController::class, 'logout']);
 });

@@ -20,7 +20,7 @@ class AuditLogTest extends AdminTestCase
     public function test_an_account_added_in_the_admin_records_who_added_it(): void
     {
         $admin = $this->admin();
-        $this->actingAs($admin)->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $this->actingAs($admin)->post('/admin/patients', $this->newPatient())->assertOk();
 
         $user = User::where('username', 'ranahaddad')->firstOrFail();
         $this->assertSame([User::VIA_ADMIN, $admin->id, 'Site Admin'], [$user->created_via, $user->created_by_id, $user->created_by_name]);
@@ -53,7 +53,7 @@ class AuditLogTest extends AdminTestCase
 
     public function test_an_edit_keeps_before_and_after_and_a_rejected_form_writes_nothing(): void
     {
-        $this->actingAs($this->admin())->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $this->actingAs($this->admin())->post('/admin/patients', $this->newPatient())->assertOk();
         $user = User::where('username', 'ranahaddad')->firstOrFail();
 
         $this->from("/admin/patients/{$user->id}/edit")
@@ -71,7 +71,7 @@ class AuditLogTest extends AdminTestCase
 
     public function test_a_deleted_account_keeps_its_history_and_reads_are_not_logged(): void
     {
-        $this->actingAs($this->admin())->post('/admin/patients', $this->newPatient())->assertRedirect();
+        $this->actingAs($this->admin())->post('/admin/patients', $this->newPatient())->assertOk();
         $user = User::where('username', 'ranahaddad')->firstOrFail();
         $this->get('/admin/patients')->assertOk();
         $this->get("/admin/patients/{$user->id}")->assertOk();

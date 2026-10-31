@@ -269,6 +269,9 @@ final class LabRows
             'sign' => '',
             'is_title' => 'N',
             'cat_name' => 'Radiology',
+            // Tells the app this row stands for a document, so it draws a
+            // report card instead of a value card. Lab rows never carry it.
+            'kind' => 'report',
         ]]];
     }
 
@@ -293,9 +296,9 @@ final class LabRows
                     return null;
                 }
                 $expires = time() + (int) config('medvault.labs.file_link_ttl');
-                // Which server's folder the path is in. Signed, so a lab path
-                // cannot be replayed against the radiology host or back.
-                $src = $cfg->isRadiologyHost() ? 'radiology' : '';
+                // Which login and folder the path belongs to. Signed, so a path
+                // cannot be replayed against another host or another login.
+                $src = $cfg->source();
 
                 return url('wp-json/custom/v1/lab-file').'?'.http_build_query([
                     'lab_id' => $cfg->labId,
