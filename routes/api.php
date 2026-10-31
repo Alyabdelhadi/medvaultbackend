@@ -63,4 +63,6 @@ Route::middleware('app.token')->group(function () {
     Route::post('device/unregister', [NotificationController::class, 'unregister']);
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/read', [NotificationController::class, 'read']);
+    Route::post('notifications/delete', [NotificationController::class, 'delete']);
+    Route::post('notifications/clear', [NotificationController::class, 'clear']);
 });

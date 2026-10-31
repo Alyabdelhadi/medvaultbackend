@@ -22,6 +22,7 @@ class AppNotification extends Model
         return [
             'lab_id' => 'integer',
             'is_read' => 'boolean',
+            'is_deleted' => 'boolean',
         ];
     }
 

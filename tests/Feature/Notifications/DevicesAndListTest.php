@@ -6,6 +6,7 @@ use App\Models\AppNotification;
 use App\Models\Device;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
+use App\Services\Notifications\Notifier;
 
 class DevicesAndListTest extends NotificationsTestCase
 {
@@ -88,5 +89,52 @@ class DevicesAndListTest extends NotificationsTestCase
         $this->postJson(self::API.'/notifications/read', ['id' => $theirs->id], $this->bearer($token))->assertJsonPath('updated', 0);
         $this->postJson(self::API.'/notifications/read', [], $this->bearer($token))->assertJsonPath('updated', 1);
         $this->assertFalse($theirs->refresh()->is_read);
+    }
+
+    public function test_delete_hides_one_of_my_notifications_and_keeps_it_for_the_duplicate_check(): void
+    {
+        [$user, $token] = $this->signedIn();
+        $mine = AppNotification::create(['user_id' => $user->id, 'body' => 'a', 'type' => 'result_ready', 'lab_id' => 5, 'request_nb' => '26L1', 'created_at' => now()]);
+        AppNotification::create(['user_id' => $user->id, 'body' => 'b', 'created_at' => now()]);
+        $theirs = AppNotification::create(['user_id' => User::factory()->create()->id, 'body' => 'c', 'created_at' => now()]);
+
+        $this->postJson(self::API.'/notifications/delete', ['id' => $mine->id], $this->bearer($token))
+            ->assertOk()->assertExactJson(['success' => true, 'deleted' => 1]);
+        // Someone else's id, or one already gone, changes nothing.
+        $this->postJson(self::API.'/notifications/delete', ['id' => $theirs->id], $this->bearer($token))->assertJsonPath('deleted', 0);
+        $this->postJson(self::API.'/notifications/delete', ['id' => $mine->id], $this->bearer($token))->assertJsonPath('deleted', 0);
+
+        $this->getJson(self::API.'/notifications', $this->bearer($token))
+            ->assertJsonPath('count', 1)->assertJsonPath('unread_count', 1)->assertJsonPath('data.0.body', 'b');
+        $this->assertFalse($theirs->fresh()->is_deleted);
+        // Still in the log, so the poller will not send this alert again.
+        $this->assertTrue(Notifier::alreadySent($user, 'result_ready', '26L1', 5));
+    }
+
+    public function test_delete_without_an_id_is_refused_not_a_clear(): void
+    {
+        [$user, $token] = $this->signedIn();
+        AppNotification::create(['user_id' => $user->id, 'body' => 'a', 'created_at' => now()]);
+
+        $this->postJson(self::API.'/notifications/delete', [], $this->bearer($token))->assertStatus(400);
+        $this->postJson(self::API.'/notifications/delete', ['id' => 0], $this->bearer($token))->assertStatus(400);
+        $this->assertSame(0, AppNotification::where('is_deleted', true)->count());
+    }
+
+    public function test_clear_hides_all_of_mine_only(): void
+    {
+        [$user, $token] = $this->signedIn();
+        AppNotification::create(['user_id' => $user->id, 'body' => 'a', 'created_at' => now()]);
+        AppNotification::create(['user_id' => $user->id, 'body' => 'b', 'is_read' => true, 'created_at' => now()]);
+        $theirs = AppNotification::create(['user_id' => User::factory()->create()->id, 'body' => 'c', 'created_at' => now()]);
+
+        $this->postJson(self::API.'/notifications/clear', [], $this->bearer($token))
+            ->assertOk()->assertExactJson(['success' => true, 'deleted' => 2]);
+        $this->getJson(self::API.'/notifications', $this->bearer($token))
+            ->assertJsonPath('count', 0)->assertJsonPath('unread_count', 0);
+        $this->assertFalse($theirs->fresh()->is_deleted);
+        $this->assertSame(3, AppNotification::count());
+
+        $this->postJson(self::API.'/notifications/clear')->assertUnauthorized();
     }
 }

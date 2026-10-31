@@ -9,7 +9,7 @@ use App\Services\Notifications\DeviceRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** POST /device/register, /device/unregister; GET /notifications; POST /notifications/read. */
+/** POST /device/register, /device/unregister; GET /notifications; POST /notifications/read, /delete, /clear. */
 class NotificationController extends Controller
 {
     use ReadsWordPressParams;
@@ -53,12 +53,12 @@ class NotificationController extends Controller
         $perPage = min(100, max(1, abs((int) $request->input('per_page', 30))));
         $page = max(1, abs((int) $request->input('page', 1)));
 
-        $rows = AppNotification::where('user_id', $user->id)
+        $rows = AppNotification::where('user_id', $user->id)->where('is_deleted', false)
             ->orderByDesc('created_at')->orderByDesc('id')
             ->forPage($page, $perPage)
             ->get();
 
-        $unread = AppNotification::where('user_id', $user->id)->where('is_read', false)->count();
+        $unread = AppNotification::where('user_id', $user->id)->where('is_read', false)->where('is_deleted', false)->count();
 
         $data = $rows->map(function (AppNotification $n) {
             $created = (string) $n->getRawOriginal('created_at');
@@ -91,5 +91,35 @@ class NotificationController extends Controller
             ->update(['is_read' => true]);
 
         return response()->json(['success' => true, 'updated' => $updated]);
+    }
+
+    /**
+     * Hides one row; never removes it. The log is a duplicate-alert guard
+     * (Notifier::alreadySent() matches deleted rows too), so a hard delete
+     * would let a dismissed result alert fire again. The 90-day prune
+     * removes them for real. Unlike /read, a missing id never means "all".
+     */
+    public function delete(Request $request): JsonResponse
+    {
+        $this->requireParams($request, ['id']);
+        $id = abs((int) $request->input('id'));
+        if ($id === 0) {
+            throw new WpError('missing_id', 'A notification id is required.');
+        }
+
+        $deleted = AppNotification::where('user_id', $request->user()->id)
+            ->where('id', $id)->where('is_deleted', false)
+            ->update(['is_deleted' => true, 'is_read' => true]);
+
+        return response()->json(['success' => true, 'deleted' => $deleted]);
+    }
+
+    public function clear(Request $request): JsonResponse
+    {
+        $deleted = AppNotification::where('user_id', $request->user()->id)
+            ->where('is_deleted', false)
+            ->update(['is_deleted' => true, 'is_read' => true]);
+
+        return response()->json(['success' => true, 'deleted' => $deleted]);
     }
 }
