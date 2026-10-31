@@ -121,4 +121,25 @@ class RadiologyPollerTest extends NotificationsTestCase
         $this->assertNull(LabAccount::where('user_id', $user->id)->first()->seen_status);
         Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/request'));
     }
+
+    /** A separate radiology server is polled with its own token, never the lab's. */
+    public function test_a_separate_radiology_host_is_polled_with_its_own_token(): void
+    {
+        $user = $this->bekaaWithPatient(['radiology_base' => 'https://rad9.test/api/mobile']);
+        $this->studies = [self::study('26X1')];
+        Http::fake([
+            ...$this->fcmFake(),
+            'rad9.test/api/mobile/login' => Http::response(['success' => true, 'token' => 'radtok']),
+            'rad9.test/api/mobile/radiology*' => fn () => Http::response(['studies' => $this->studies]),
+            '*' => Http::response(['requests' => []]),
+        ]);
+
+        $this->assertSame(1, $this->poll()['seeded']);
+        $this->studies = [self::study('26X1', '2026-10-12 15:00:00', 'CT Chest')];
+        $this->assertSame(1, $this->poll()['notified']);
+
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'lab9.test/api/mobile/radiology'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'rad9.test') && str_contains($r->url(), 'tcToken=good'));
+        $this->assertSame('radtok', LabAccount::where('user_id', $user->id)->first()->radiology_token);
+    }
 }

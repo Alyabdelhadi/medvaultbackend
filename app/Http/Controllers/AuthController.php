@@ -261,7 +261,7 @@ class AuthController extends Controller
             $user->devices()->delete();
             LabAccount::where('user_id', $user->id)
                 ->whereIn('lab_id', array_map(fn ($cfg) => $cfg->labId, $this->labs->active()))
-                ->update(['auth_failures' => 0]);
+                ->update(['auth_failures' => 0, 'radiology_auth_failures' => 0]);
         });
         $this->audit->record('account.password_reset', 'Reset their password with an SMS code', $user, [], $user);
 

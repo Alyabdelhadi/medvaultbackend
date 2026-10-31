@@ -32,7 +32,7 @@ final class LabApi
      */
     public function get(User $user, LabConfig $cfg, string $pathKey, array $query = []): Response|LabFailure
     {
-        $token = (string) LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->first()?->external_token;
+        $token = (string) LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->first()?->{$cfg->tokenColumn()};
 
         if ($token === '') {
             $refreshed = $this->tokens->refresh($user, $cfg);
@@ -142,6 +142,12 @@ final class LabApi
             return [];
         }
 
+        // Its own server, token and refusal count when it has one.
+        $cfg = $cfg->radiologyEndpoint();
+        if ($cfg->isRadiologyHost() && $this->hasGivenUp($user, $cfg)) {
+            return [];
+        }
+
         $response = $this->get($user, $cfg, 'radiology_path');
         if ($response instanceof LabFailure) {
             return $response;
@@ -172,7 +178,7 @@ final class LabApi
     /** Whether this lab has refused this account often enough to stop asking. */
     public function hasGivenUp(User $user, LabConfig $cfg): bool
     {
-        $failures = (int) LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->value('auth_failures');
+        $failures = (int) LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->value($cfg->accountColumn('auth_failures'));
 
         return $failures >= (int) config('medvault.labs.max_auth_failures');
     }

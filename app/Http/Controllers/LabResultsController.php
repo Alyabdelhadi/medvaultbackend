@@ -52,20 +52,27 @@ class LabResultsController extends Controller
         $errors = [];
 
         foreach ($this->labs->active() as $cfg) {
+            // A separate radiology server is asked even when the lab itself
+            // is down or does not know this patient: it is another system.
+            $separateRadiology = $cfg->hasSeparateRadiology();
+
             // Already established that this lab does not know this patient.
-            if ($this->api->hasGivenUp($user, $cfg)) {
+            $givenUp = $this->api->hasGivenUp($user, $cfg);
+            if ($givenUp && ! $separateRadiology) {
                 continue;
             }
 
-            $requests = $this->api->requests($user, $cfg);
+            $requests = $givenUp ? [] : $this->api->requests($user, $cfg);
             if ($requests instanceof LabFailure) {
                 // One lab down must not empty another's results, but a lab
                 // that has simply never heard of this patient is not news.
                 if (! $requests->isUnknownAccount()) {
                     $errors[] = ['lab_id' => $cfg->labId, 'lab_name' => $cfg->labName, 'message' => $requests->message];
                 }
-
-                continue;
+                if (! $separateRadiology) {
+                    continue;
+                }
+                $requests = [];
             }
 
             foreach ($requests as $row) {
@@ -95,12 +102,16 @@ class LabResultsController extends Controller
             // hide the lab orders already listed.
             $studies = $this->api->radiology($user, $cfg);
             if ($studies instanceof LabFailure) {
-                $errors[] = ['lab_id' => $cfg->labId, 'lab_name' => $cfg->labName, 'message' => $studies->message];
+                if (! $studies->isUnknownAccount()) {
+                    $errors[] = ['lab_id' => $cfg->labId, 'lab_name' => $cfg->labName, 'message' => $studies->message];
+                }
 
                 continue;
             }
+            // Whoever the server that sent the studies says this account is.
             $holder = $studies === [] ? null
-                : LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->value('holder_name');
+                : LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)
+                    ->value($cfg->radiologyEndpoint()->accountColumn('holder_name'));
             foreach ($studies as $study) {
                 $study['birth_date'] = LabRows::studyBirthDate($study, $requests, $holder, (string) $user->dob);
                 [$order, $results] = LabRows::radiologyAsOrder($study);
@@ -161,6 +172,7 @@ class LabResultsController extends Controller
         $userId = abs((int) $request->input('uid', 0));
         $expires = abs((int) $request->input('exp', 0));
         $sig = Sanitize::textField($request->input('sig') ?? '');
+        $src = Sanitize::textField($request->input('src') ?? '');
 
         if ($request->input('path') === null) {
             throw WpError::missingParams(['path']);
@@ -175,7 +187,7 @@ class LabResultsController extends Controller
             if ($expires < time()) {
                 throw new WpError('link_expired', 'This link has expired. Open the result again.', 410);
             }
-            if (! hash_equals(LabRows::signature($userId, $labId, $path, $expires), $sig)) {
+            if (! hash_equals(LabRows::signature($userId, $labId, $path, $expires, $src), $sig)) {
                 throw new WpError('unauthorized', 'Invalid file link.', 401);
             }
             $user = User::find($userId);
@@ -184,6 +196,10 @@ class LabResultsController extends Controller
         }
 
         $cfg = $this->labs->find($labId);
+        if ($src !== '') {
+            // A study's report, from the lab's separate radiology server.
+            $cfg = $src === 'radiology' && $cfg?->hasSeparateRadiology() ? $cfg->radiologyEndpoint() : null;
+        }
         if ($cfg === null || ! in_array($cfg->pdfMode, ['endpoint', 'static_proxy'], true)) {
             throw new WpError('lab_file_unavailable', 'This lab does not serve files through MedVault.', 404);
         }

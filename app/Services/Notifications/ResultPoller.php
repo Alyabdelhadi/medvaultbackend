@@ -83,7 +83,8 @@ final class ResultPoller
         // Pollable: a patient (P or unset) holding a token at any active lab.
         $query = User::query()
             ->where(fn ($q) => $q->where('function_type', 'P')->orWhereNull('function_type'))
-            ->whereIn('id', LabAccount::select('user_id')->whereIn('lab_id', $labIds)->whereNotNull('external_token'));
+            ->whereIn('id', LabAccount::select('user_id')->whereIn('lab_id', $labIds)
+                ->where(fn ($q) => $q->whereNotNull('external_token')->orWhereNotNull('radiology_token')));
 
         $total = (clone $query)->count();
         $users = $query->orderBy('id')->offset($offset)->limit($batch)->get();
@@ -267,8 +268,8 @@ final class ResultPoller
      */
     public function pollUserRadiology(User $user, LabConfig $cfg): array
     {
-        $account = LabAccount::firstOrNew(['user_id' => $user->id, 'lab_id' => $cfg->labId]);
-        if ((int) $account->auth_failures >= (int) config('medvault.labs.max_auth_failures')) {
+        // Counted on the radiology server's own account when it has one.
+        if ($this->api->hasGivenUp($user, $cfg->radiologyEndpoint())) {
             return ['status' => 'unauthorized', 'notified' => 0];
         }
 

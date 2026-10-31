@@ -43,7 +43,7 @@ final class LabTokenService
 
         // Every attempt made while the lab's window is full both fails and
         // refills it, so once tripped, the whole site skips the call.
-        if (Cache::has(self::backoffKey($cfg->labId))) {
+        if (Cache::has(self::backoffKeyFor($cfg))) {
             return $this->rateLimited();
         }
 
@@ -85,7 +85,7 @@ final class LabTokenService
         if (empty($body['success']) || empty($body['token'])) {
             // Answered and refused. Counted per lab, so a dead account stops
             // being retried without parking the user at the labs that know them.
-            $this->account($user, $cfg->labId)->increment('auth_failures');
+            $this->account($user, $cfg->labId)->increment($cfg->accountColumn('auth_failures'));
 
             return new LabFailure(LabFailure::REFUSED, 'The lab system did not issue a token for this account.');
         }
@@ -93,12 +93,12 @@ final class LabTokenService
         $token = Sanitize::textField($body['token']);
 
         $account = $this->account($user, $cfg->labId);
-        $account->forceFill(['external_token' => $token, 'poll_error' => null, 'auth_failures' => 0]);
+        $account->forceFill([$cfg->tokenColumn() => $token, 'poll_error' => null, $cfg->accountColumn('auth_failures') => 0]);
         // Who the lab says this account is. Kept only when sent, so a lab
         // that omits it does not erase an earlier one.
         $holder = Sanitize::textField(is_string($body['name'] ?? null) ? $body['name'] : '');
         if ($holder !== '') {
-            $account->holder_name = $holder;
+            $account->{$cfg->accountColumn('holder_name')} = $holder;
         }
         $account->save();
 
@@ -187,9 +187,15 @@ final class LabTokenService
         return 'medvault_lab_backoff_'.$labId;
     }
 
+    /** Per host: a throttled radiology server must not stall the lab's logins. */
+    private static function backoffKeyFor(LabConfig $cfg): string
+    {
+        return self::backoffKey($cfg->labId).($cfg->isRadiologyHost() ? '_radiology' : '');
+    }
+
     private function backOff(LabConfig $cfg, int $seconds): void
     {
-        Cache::put(self::backoffKey($cfg->labId), 1, $seconds);
+        Cache::put(self::backoffKeyFor($cfg), 1, $seconds);
     }
 
     private function rateLimited(): LabFailure

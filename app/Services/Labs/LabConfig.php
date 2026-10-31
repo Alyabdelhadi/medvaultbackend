@@ -41,6 +41,12 @@ final class LabConfig
         public readonly bool $radiology = false,
         // Whether to fetch /request. Off for a radiology-only lab post.
         public readonly bool $orders = true,
+        // A separate server for /radiology; '' means this lab's own base.
+        public readonly string $radiologyBase = '',
+        public readonly string $radiologyPdfBase = '',
+        // Which of the account's token columns this config logs in to: '' for
+        // the lab's, 'radiology_' for the radiology server's.
+        public readonly string $accountPrefix = '',
     ) {}
 
     /** Null when the lab has no base URL, as before: such a lab has no API. */
@@ -79,6 +85,8 @@ final class LabConfig
             radiology: (bool) $lab->radiology_enabled && ! empty(LabDrivers::get($driverKey)['radiology_path']),
             // Null on a row created before the column: it fetched orders.
             orders: $lab->orders_enabled ?? true,
+            radiologyBase: rtrim(trim((string) $lab->radiology_base), '/\\'),
+            radiologyPdfBase: trim((string) $lab->radiology_pdf_base),
         );
     }
 
@@ -131,6 +139,62 @@ final class LabConfig
         }
 
         return $headers;
+    }
+
+    /** Whether /radiology lives on its own server, with its own login. */
+    public function hasSeparateRadiology(): bool
+    {
+        return $this->radiology && $this->radiologyBase !== '';
+    }
+
+    /**
+     * The config to call /radiology with: this one, or for a separate server
+     * the same lab pointed at that host, its PDF folder and its token. Same
+     * lab id and name, so studies still belong to this lab everywhere.
+     */
+    public function radiologyEndpoint(): self
+    {
+        if (! $this->hasSeparateRadiology()) {
+            return $this;
+        }
+
+        return new self(
+            labId: $this->labId,
+            labName: $this->labName,
+            enabled: $this->enabled,
+            driverKey: $this->driverKey,
+            driver: $this->driver,
+            base: $this->radiologyBase,
+            pdfBase: $this->radiologyPdfBase,
+            pdfMode: $this->pdfMode,
+            headers: $this->headers,
+            timeout: $this->timeout,
+            priority: $this->priority,
+            mobileFormat: $this->mobileFormat,
+            readySignal: $this->readySignal,
+            caps: $this->caps,
+            radiology: true,
+            orders: false,
+            accountPrefix: 'radiology_',
+        );
+    }
+
+    /** Whether this is a radiologyEndpoint() for a separate server. */
+    public function isRadiologyHost(): bool
+    {
+        return $this->accountPrefix !== '';
+    }
+
+    /** The lab_accounts column holding this config's token. */
+    public function tokenColumn(): string
+    {
+        return $this->isRadiologyHost() ? 'radiology_token' : 'external_token';
+    }
+
+    /** A per-host lab_accounts column: auth_failures or holder_name. */
+    public function accountColumn(string $field): string
+    {
+        return $this->accountPrefix.$field;
     }
 
     /** A full URL for one of the driver's paths. */

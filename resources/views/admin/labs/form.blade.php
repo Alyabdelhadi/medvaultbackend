@@ -124,6 +124,12 @@
         <label class="check"><input type="checkbox" name="orders_enabled" value="1" {{ $checked('orders_enabled', true) }}> Fetch lab orders (<code>/request</code>)</label>
         <p class="hint">Untick for a radiology-only post: a facility whose imaging runs on a separate server is a second lab with its own base URL, radiology on and lab orders off. Fetching orders from that server would list a second, different copy of them.</p>
         <label class="check"><input type="checkbox" name="radiology_enabled" value="1" {{ $checked('radiology_enabled') }}> Also fetch imaging studies (<code>/radiology</code>)</label>
+        <label for="radiology_base">Radiology base URL</label>
+        <input id="radiology_base" name="radiology_base" type="url" value="{{ $v('radiology_base') }}" placeholder="Empty: the Base URL above">
+        <p class="hint">Only when imaging runs on its own server. Patients get a separate login and token there, and being unknown to one server never blocks the other. No trailing slash.</p>
+        <label for="radiology_pdf_base">Radiology PDF base URL</label>
+        <input id="radiology_pdf_base" name="radiology_pdf_base" type="url" value="{{ $v('radiology_pdf_base') }}" placeholder="https://radiology.example.net/">
+        <p class="hint">The folder study reports are served from on that server, delivered the same way as this lab's PDFs.</p>
         <p class="hint">Studies are listed with this lab's orders under the Radiology category, with the report PDF as their only content. A study counts as ready only once it has a report (<code>report_datetime</code> or <code>pdf_path</code>), never on <code>status</code>, and the first poll after switching this on only records, so past studies do not all alert at once. Leave off until the facility fills in the study name and report fields.</p>
 
         <h3 style="margin:18px 0 4px;font-size:15px">Paid features</h3>

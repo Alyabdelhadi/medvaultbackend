@@ -16,13 +16,16 @@ class LabAccount extends Model
 {
     protected $guarded = ['id'];
 
-    protected $hidden = ['external_token'];
+    protected $hidden = ['external_token', 'radiology_token'];
 
     protected function casts(): array
     {
         return [
             'external_token' => 'encrypted',
             'auth_failures' => 'integer',
+            // A second host's token, for a lab whose radiology has its own server.
+            'radiology_token' => 'encrypted',
+            'radiology_auth_failures' => 'integer',
             'seen_status' => JsonMap::class,
             'radiology_seen_status' => JsonMap::class,
             'polled_at' => 'datetime',

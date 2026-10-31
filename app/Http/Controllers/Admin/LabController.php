@@ -144,6 +144,8 @@ class LabController extends Controller
 
         $lab->api_base = Sanitize::urlRaw((string) $request->input('api_base', '')) ?: null;
         $lab->api_pdf_base = Sanitize::urlRaw((string) $request->input('api_pdf_base', '')) ?: null;
+        $lab->radiology_base = Sanitize::urlRaw((string) $request->input('radiology_base', '')) ?: null;
+        $lab->radiology_pdf_base = Sanitize::urlRaw((string) $request->input('radiology_pdf_base', '')) ?: null;
         $lab->api_headers = trim((string) $request->input('api_headers', '')) ?: null;
 
         // Selects only take a known value; anything else leaves the old one.

@@ -176,4 +176,95 @@ class RadiologyTest extends ApiTestCase
         // Nothing to expand at a radiology-only post.
         $this->getJson(self::API.'/lab-results/26X000002?lab_id=10', $this->bearer($token))->assertNotFound();
     }
+
+    /** One Bekaa post, two servers: lab orders on one, studies on the other. */
+    private function bekaaWithRadiologyHost(): void
+    {
+        $this->bekaa(['radiology_enabled' => true, 'radiology_base' => 'https://rad9.test/api/mobile/', 'radiology_pdf_base' => 'https://radpdf9.test/']);
+    }
+
+    private function fakeTwoHosts(array $radiologyLogin = ['success' => true, 'token' => 'radtok', 'name' => 'NOUR AL HARIRI']): void
+    {
+        Http::fake([
+            'lab9.test/api/mobile/request*' => Http::response(self::REQUESTS),
+            'lab9.test/api/mobile/results*' => Http::response(['results' => []]),
+            'rad9.test/api/mobile/login' => Http::response($radiologyLogin),
+            'rad9.test/api/mobile/radiology*' => Http::response(self::STUDIES),
+        ]);
+    }
+
+    public function test_a_separate_radiology_host_has_its_own_login_and_token(): void
+    {
+        $this->bekaaWithRadiologyHost();
+        $token = $this->signedInAtBekaa();
+        $this->fakeTwoHosts();
+
+        $response = $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
+            ->assertJsonPath('count', 3)->assertJsonPath('errors', []);
+
+        $rows = collect($response->json('data'))->keyBy('request_nb');
+        $this->assertSame(9, $rows['26X000002']['lab_id']);
+        $this->assertSame(9, $rows['26L000001']['lab_id']);
+
+        // The lab's token never goes to the radiology server, and the reverse.
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://rad9.test/api/mobile/login');
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'rad9.test/api/mobile/radiology?tcToken=radtok'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'lab9.test/api/mobile/radiology'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'rad9.test') && str_contains($r->url(), 'tcToken=good'));
+
+        $account = LabAccount::sole();
+        $this->assertSame('good', $account->external_token);
+        $this->assertSame('radtok', $account->radiology_token);
+        $this->assertSame('NOUR AL HARIRI', $account->radiology_holder_name);
+        $this->assertNull($account->holder_name);
+    }
+
+    public function test_a_study_pdf_streams_from_the_radiology_hosts_folder_only(): void
+    {
+        $this->bekaaWithRadiologyHost();
+        $token = $this->signedInAtBekaa();
+        $this->fakeTwoHosts();
+
+        $url = collect($this->getJson(self::API.'/lab-results', $this->bearer($token))->json('data'))
+            ->firstWhere('request_nb', '26X000002')['pdf_url'];
+        $this->assertStringContainsString('src=radiology', $url);
+        $path = substr($url, strpos($url, '/wp-json'));
+
+        Http::fake(['radpdf9.test/*' => Http::response('%PDF-1.4', 200, ['Content-Type' => 'application/pdf'])]);
+        $this->get($path)->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://radpdf9.test/RadPDF/26X000002_100.PDF');
+
+        // The source is signed: dropping it, to fetch the path from the lab's
+        // folder instead, breaks the signature.
+        $this->get(str_replace('&src=radiology', '', $path))->assertUnauthorized();
+    }
+
+    public function test_being_unknown_to_radiology_never_touches_the_lab_account(): void
+    {
+        $this->bekaaWithRadiologyHost();
+        $token = $this->signedInAtBekaa();
+        $this->fakeTwoHosts(['success' => false, 'message' => 'Invalid credentials']);
+
+        // Not news, as at a lab that does not know the patient.
+        $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
+            ->assertJsonPath('count', 1)->assertJsonPath('errors', [])
+            ->assertJsonPath('data.0.request_nb', '26L000001');
+
+        $account = LabAccount::sole();
+        $this->assertSame(1, $account->radiology_auth_failures);
+        $this->assertSame(0, (int) $account->auth_failures);
+        $this->assertSame('good', $account->external_token);
+    }
+
+    public function test_a_lab_that_gave_up_on_the_patient_still_shows_their_studies(): void
+    {
+        $this->bekaaWithRadiologyHost();
+        $token = $this->signedInAtBekaa();
+        LabAccount::query()->update(['auth_failures' => (int) config('medvault.labs.max_auth_failures')]);
+        $this->fakeTwoHosts();
+
+        $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
+            ->assertJsonPath('count', 2)->assertJsonPath('data.0.cat_name', 'Radiology')->assertJsonPath('data.1.cat_name', 'Radiology');
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'lab9.test'));
+    }
 }

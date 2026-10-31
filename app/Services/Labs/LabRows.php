@@ -293,13 +293,17 @@ final class LabRows
                     return null;
                 }
                 $expires = time() + (int) config('medvault.labs.file_link_ttl');
+                // Which server's folder the path is in. Signed, so a lab path
+                // cannot be replayed against the radiology host or back.
+                $src = $cfg->isRadiologyHost() ? 'radiology' : '';
 
                 return url('wp-json/custom/v1/lab-file').'?'.http_build_query([
                     'lab_id' => $cfg->labId,
                     'path' => $path,
+                    ...($src === '' ? [] : ['src' => $src]),
                     'uid' => $userId,
                     'exp' => $expires,
-                    'sig' => self::signature($userId, $cfg->labId, $path, $expires),
+                    'sig' => self::signature($userId, $cfg->labId, $path, $expires, $src),
                 ], '', '&', PHP_QUERY_RFC3986);
 
             default:
@@ -315,9 +319,12 @@ final class LabRows
      * given cannot be signed. That is the check an endpoint lab makes for us
      * and a public folder makes for nobody.
      */
-    public static function signature(int $userId, int $labId, string $path, int $expires): string
+    public static function signature(int $userId, int $labId, string $path, int $expires, string $src = ''): string
     {
-        return hash_hmac('sha256', "{$userId}|{$labId}|{$path}|{$expires}", self::signingKey());
+        // No source keeps the original message, so links already issued still verify.
+        $message = "{$userId}|{$labId}|{$path}|{$expires}".($src === '' ? '' : "|{$src}");
+
+        return hash_hmac('sha256', $message, self::signingKey());
     }
 
     /**
