@@ -138,7 +138,7 @@ class LabController extends Controller
         $lab->slides = $slides;
 
         // Checkboxes: absent means off, so they are always written.
-        foreach (['api_enabled', 'caps_ranges', 'caps_flags', 'caps_pdf', 'ai_summary', 'radiology_enabled'] as $flag) {
+        foreach (['api_enabled', 'caps_ranges', 'caps_flags', 'caps_pdf', 'ai_summary', 'radiology_enabled', 'orders_enabled'] as $flag) {
             $lab->{$flag} = $request->boolean($flag);
         }
 

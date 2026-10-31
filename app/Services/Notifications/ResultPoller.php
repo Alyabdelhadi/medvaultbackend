@@ -132,9 +132,11 @@ final class ResultPoller
         $notified = 0;
 
         foreach ($this->labs->active() as $cfg) {
-            $result = $this->pollUserLab($user, $cfg);
-            $statuses[] = $result['status'];
-            $notified += $result['notified'];
+            if ($cfg->orders) {
+                $result = $this->pollUserLab($user, $cfg);
+                $statuses[] = $result['status'];
+                $notified += $result['notified'];
+            }
 
             if ($cfg->radiology) {
                 $result = $this->pollUserRadiology($user, $cfg);

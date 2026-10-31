@@ -109,4 +109,16 @@ class RadiologyPollerTest extends NotificationsTestCase
         $this->poll();
         Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/radiology'));
     }
+
+    /** A radiology-only post polls studies and never its /request. */
+    public function test_a_radiology_only_post_never_polls_orders(): void
+    {
+        $user = $this->bekaaWithPatient(['ready_signal' => 'status', 'orders_enabled' => false]);
+        $this->studies = [self::study('26X1')];
+        $this->fakeLab();
+
+        $this->assertSame(1, $this->poll()['seeded']);
+        $this->assertNull(LabAccount::where('user_id', $user->id)->first()->seen_status);
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/request'));
+    }
 }

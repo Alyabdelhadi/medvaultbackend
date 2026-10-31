@@ -138,4 +138,42 @@ class RadiologyTest extends ApiTestCase
         $this->get(substr($url, strpos($url, '/wp-json')))->assertOk()->assertHeader('Content-Type', 'application/pdf');
         Http::assertSent(fn (Request $r) => $r->url() === 'https://pdf9.test/RadPDF/26X000002_100.PDF');
     }
+
+    /**
+     * Bekaa's radiology answers on its own server: a second lab post with
+     * orders off. Its /request is a different database and must not be listed.
+     */
+    public function test_a_radiology_only_post_lists_studies_and_never_its_orders(): void
+    {
+        $this->bekaa();
+        $this->lab(10, 'Bekaa Hospital Radiology', [
+            'ready_signal' => 'none', 'caps_ranges' => false, 'caps_flags' => false,
+            'radiology_enabled' => true, 'orders_enabled' => false, 'api_priority' => 20,
+            'api_pdf_mode' => 'static_proxy', 'api_pdf_base' => 'https://pdf10.test/',
+        ]);
+        $token = $this->signedInAtBekaa();
+        LabAccount::create(['user_id' => LabAccount::first()->user_id, 'lab_id' => 10, 'external_token' => 'rad']);
+        Http::fake([
+            'lab9.test/api/mobile/request*' => Http::response(self::REQUESTS),
+            'lab9.test/api/mobile/results*' => Http::response(['results' => []]),
+            'lab10.test/api/mobile/radiology*' => Http::response(self::STUDIES),
+            'lab10.test/*' => Http::response(['requests' => [['request_nb' => '99L000001', 'status' => 'V']]]),
+        ]);
+
+        $response = $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
+            ->assertJsonPath('count', 3)->assertJsonPath('errors', []);
+
+        $rows = collect($response->json('data'))->keyBy('request_nb');
+        $this->assertSame(9, $rows['26L000001']['lab_id']);
+        $this->assertSame(10, $rows['26X000002']['lab_id']);
+        $this->assertSame('Radiology', $rows['26X000002']['cat_name']);
+        $this->assertStringContainsString('lab_id=10', $rows['26X000002']['pdf_url']);
+        $this->assertArrayNotHasKey('99L000001', $rows->all());
+
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'lab10.test/api/mobile/request'));
+        Http::assertNotSent(fn (Request $r) => str_contains($r->url(), 'lab9.test/api/mobile/radiology'));
+
+        // Nothing to expand at a radiology-only post.
+        $this->getJson(self::API.'/lab-results/26X000002?lab_id=10', $this->bearer($token))->assertNotFound();
+    }
 }

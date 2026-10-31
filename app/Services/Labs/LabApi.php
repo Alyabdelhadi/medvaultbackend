@@ -62,6 +62,11 @@ final class LabApi
      */
     public function requests(User $user, LabConfig $cfg): array|LabFailure
     {
+        // A radiology-only post: its server's /request is another database.
+        if (! $cfg->orders) {
+            return [];
+        }
+
         $response = $this->get($user, $cfg, 'requests_path');
         if ($response instanceof LabFailure) {
             return $response;
@@ -94,6 +99,10 @@ final class LabApi
      */
     public function results(User $user, LabConfig $cfg, string $requestNb): array|LabFailure
     {
+        if (! $cfg->orders) {
+            return new LabFailure('result_not_found', 'These results are not available.', 404);
+        }
+
         $response = $this->get($user, $cfg, 'results_path', ['requestnb' => $requestNb]);
         if ($response instanceof LabFailure) {
             return $response;

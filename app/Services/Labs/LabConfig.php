@@ -39,6 +39,8 @@ final class LabConfig
         public readonly array $caps,
         // Whether to fetch /radiology too. Off for the legacy account.
         public readonly bool $radiology = false,
+        // Whether to fetch /request. Off for a radiology-only lab post.
+        public readonly bool $orders = true,
     ) {}
 
     /** Null when the lab has no base URL, as before: such a lab has no API. */
@@ -75,6 +77,8 @@ final class LabConfig
                 'ai' => self::aiSummaryEnabled() && (bool) $lab->ai_summary,
             ],
             radiology: (bool) $lab->radiology_enabled && ! empty(LabDrivers::get($driverKey)['radiology_path']),
+            // Null on a row created before the column: it fetched orders.
+            orders: $lab->orders_enabled ?? true,
         );
     }
 
