@@ -24,7 +24,7 @@ class NotificationController extends Controller
             throw new WpError('missing_token', 'device_token is required.');
         }
 
-        $devices->register($request->user(), $token, $platform ?: 'unknown');
+        $devices->register($request->user(), $token, $platform ?: 'unknown', $request->attributes->get('app_session')?->id);
 
         return response()->json([
             'success' => true,

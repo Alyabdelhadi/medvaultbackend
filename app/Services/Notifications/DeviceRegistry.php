@@ -17,14 +17,15 @@ final class DeviceRegistry
 {
     public const MAX_PER_USER = 10;
 
-    public function register(User $user, string $token, string $platform): void
+    /** $sessionId: the signed-in session registering it, removed together. */
+    public function register(User $user, string $token, string $platform, ?int $sessionId = null): void
     {
-        DB::transaction(function () use ($user, $token, $platform) {
+        DB::transaction(function () use ($user, $token, $platform, $sessionId) {
             // Moves the token off whoever held it before.
             Device::where('token', $token)->where('user_id', '!=', $user->id)->delete();
 
             $device = Device::firstOrNew(['token' => $token]);
-            $device->forceFill(['user_id' => $user->id, 'platform' => $platform])->touch();
+            $device->forceFill(['user_id' => $user->id, 'platform' => $platform, 'app_session_id' => $sessionId])->touch();
 
             $keep = Device::where('user_id', $user->id)->orderByDesc('updated_at')->orderByDesc('id')
                 ->limit(self::MAX_PER_USER)->pluck('id');
@@ -35,6 +36,14 @@ final class DeviceRegistry
     public function remove(User $user, string $token): void
     {
         Device::where('user_id', $user->id)->where('token', $token)->delete();
+    }
+
+    /** Stops the alerts of phones whose sessions were just removed. */
+    public function forgetSessions(User $user, array $sessionIds): void
+    {
+        if ($sessionIds !== []) {
+            Device::where('user_id', $user->id)->whereIn('app_session_id', $sessionIds)->delete();
+        }
     }
 
     /** @return list<string> */

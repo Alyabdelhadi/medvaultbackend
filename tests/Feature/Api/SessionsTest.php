@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\AppSession;
+use App\Models\Device;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use Illuminate\Support\Facades\DB;
@@ -122,5 +123,24 @@ class SessionsTest extends ApiTestCase
         $user = User::where('username', 'samikhoury')->firstOrFail();
         $this->assertSame(9, $user->dg_lab_id);
         $this->assertEqualsCanonicalizing([5, 9], DB::table('user_labs')->where('user_id', $user->id)->pluck('lab_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    public function test_removing_a_device_also_stops_its_result_alerts(): void
+    {
+        $this->patient();
+        Http::fake();
+        $phoneA = $this->login(['device_name' => 'iPhone 15']);
+        $phoneB = $this->login(['device_name' => 'Pixel 8']);
+        $this->postJson(self::API.'/device/register', ['device_token' => 'fcm-a', 'platform' => 'ios'], $this->bearer($phoneA))->assertOk();
+        $this->postJson(self::API.'/device/register', ['device_token' => 'fcm-b', 'platform' => 'android'], $this->bearer($phoneB))->assertOk();
+
+        $this->postJson(self::API.'/sessions/revoke', ['id' => AppSession::where('device_name', 'iPhone 15')->value('id')], $this->bearer($phoneB))
+            ->assertJsonPath('deleted', 1);
+
+        $this->assertSame(['fcm-b'], Device::pluck('token')->all());
+
+        // Logging out removes this phone's own registration the same way.
+        $this->postJson(self::API.'/logout', [], $this->bearer($phoneB))->assertOk();
+        $this->assertSame(0, Device::count());
     }
 }
