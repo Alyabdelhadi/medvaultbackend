@@ -29,10 +29,11 @@
 .mv-seg input:checked + label{background:var(--navy);color:#fff}
 .mv-seg input:focus-visible + label{box-shadow:inset 0 0 0 3px rgba(43,169,169,.35)}
 .mv-phone{display:grid;grid-template-columns:140px minmax(0,1fr);gap:8px}
-.mv-pass{display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:8px}
+.mv-pass{display:grid;grid-template-columns:minmax(0,1fr) 46px 46px;gap:8px}
 .mv-pass input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em}
 .mv-pass button{border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:#fff;color:var(--navy);cursor:pointer;display:flex;align-items:center;justify-content:center}
 .mv-pass button:hover{border-color:var(--navy)}
+.mv-pass button.copied{border-color:var(--teal,#2ba9a9);color:var(--teal,#2ba9a9)}
 .mv-more{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:4px 0 20px;padding:14px 0}
 .mv-more summary{cursor:pointer;color:#2f55d4;font-weight:500;list-style:none}
 .mv-more summary::-webkit-details-marker{display:none}
@@ -102,6 +103,7 @@
             <label for="password">Password <span class="req">*</span></label>
             <div class="mv-pass">
                 <input id="password" name="password" type="text" value="{{ $password }}" required autocomplete="off" spellcheck="false">
+                <button type="button" id="mv-copy" title="Copy password" aria-label="Copy the password">@include('admin.partials.icon', ['name' => 'copy'])</button>
                 <button type="button" id="mv-regen" title="New password" aria-label="Generate a new password">@include('admin.partials.icon', ['name' => 'refresh'])</button>
             </div>
             <p class="hint">Auto-generated. Printed on the slip, not sent.</p>{!! $err('password') !!}
@@ -142,7 +144,8 @@
     </details>
 
     <div class="mv-submit">
-        <button class="btn" type="submit">@include('admin.partials.icon', ['name' => 'print']) Add &amp; Print</button>
+        <button class="btn secondary" type="submit" name="after" value="save">@include('admin.partials.icon', ['name' => 'check']) Save</button>
+        <button class="btn" type="submit" name="after" value="print">@include('admin.partials.icon', ['name' => 'print']) Add &amp; Print</button>
         <a class="btn secondary" href="{{ route('admin.users.index', $slug) }}">Cancel</a>
         <p class="hint">Account is created here only. No SMS is sent; the lab token is issued at first sign-in.</p>
     </div>
@@ -201,6 +204,20 @@
             doctor: ['D', 'G'].indexOf($('mv-type').value) !== -1,
         });
     }
+    var copyBtn = $('mv-copy');
+    copyBtn.addEventListener('click', function () {
+        var field = $('password');
+        function done() {
+            copyBtn.classList.add('copied'); copyBtn.title = 'Copied';
+            setTimeout(function () { copyBtn.classList.remove('copied'); copyBtn.title = 'Copy password'; }, 1500);
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(field.value).then(done, function () { field.select(); document.execCommand('copy'); done(); });
+        } else {
+            // Plain-http admin: the Clipboard API is unavailable there.
+            field.select(); document.execCommand('copy'); done();
+        }
+    });
     $('mv-regen').addEventListener('click', function () { $('password').value = newPassword(); sync(); });
     ['first_name', 'last_name', 'mobile_number', 'password'].forEach(function (id) { $(id).addEventListener('input', sync); });
     ['mobile_cc', 'mv-type'].concat(lab ? ['lab_id'] : []).forEach(function (id) { $(id).addEventListener('change', sync); });

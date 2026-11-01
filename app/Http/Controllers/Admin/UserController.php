@@ -107,6 +107,12 @@ class UserController extends Controller
                 ->with(['status' => 'Please correct the highlighted fields.', 'status_type' => 'error']);
         }
 
+        // Save: back to the list, no slip. The password was on the form (and
+        // its copy button); it is not carried any further.
+        if ($request->input('after') === 'save') {
+            return redirect()->route('admin.users.index', [array_search($user->functionType(), self::SLUGS, true) ?: $slug, 'created' => $user->id]);
+        }
+
         // The slip, rendered here rather than after a redirect: the password
         // exists only in this request and must not be parked in the session.
         $labs = Lab::pluck('title', 'id');

@@ -33,6 +33,20 @@ class UsersAdminTest extends AdminTestCase
         $this->postJson('/wp-json/custom/v1/login', ['mobile_number' => '+9613123456', 'password' => 'secret12'])->assertOk();
     }
 
+    public function test_save_adds_without_the_slip(): void
+    {
+        $this->actingAs($this->admin());
+
+        $user = null;
+        $this->post('/admin/patients', $this->newPatient(['after' => 'save']))
+            ->assertRedirect('/admin/patients?created='.($user = User::where('username', 'ranahaddad')->first())?->id)
+            ->assertSessionMissing('password');
+        $this->assertNotNull($user);
+        $this->assertTrue(app(Passwords::class)->check($user, 'secret12'));
+        $this->get("/admin/patients?created={$user->id}")->assertSee('ranahaddad');
+        $this->get('/admin/patients/new')->assertSee('Save')->assertSee('mv-copy', false);
+    }
+
     public function test_validation_and_duplicate_numbers(): void
     {
         $this->actingAs($this->admin());
