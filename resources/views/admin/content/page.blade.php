@@ -9,6 +9,13 @@
     </div>
 </div>
 @if ($errors->any())<div class="notice error">{{ $errors->first() }}</div>@endif
+<form method="post" action="{{ route('admin.phone.update') }}" class="card">
+    @csrf @method('put')
+    <label for="phone">Contact us number</label>
+    <input id="phone" name="phone" type="tel" inputmode="tel" value="{{ old('phone', $phone) }}" placeholder="+96176618326" required>
+    <p class="hint">The number shown in the app under "Contact us". Include the country code.</p>
+    <div class="actions"><button class="btn" type="submit">Save number</button></div>
+</form>
 <form method="post" action="{{ route('admin.pages.update', $key) }}" class="card">
     @csrf @method('put')
     <label for="title">Title</label>

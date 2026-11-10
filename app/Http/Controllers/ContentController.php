@@ -6,6 +6,7 @@ use App\Http\WpError;
 use App\Models\Banner;
 use App\Models\Page;
 use App\Models\ResultCategory;
+use App\Models\Setting;
 use App\Models\Slider;
 use App\Support\WordPress\Sanitize;
 use Illuminate\Http\JsonResponse;
@@ -71,7 +72,10 @@ class ContentController extends Controller
 
     public function phone(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => ['phone' => config('medvault.support_phone')]]);
+        // Set in Admin -> About & FAQ; .env is only the default.
+        $phone = Setting::get('support_phone') ?: config('medvault.support_phone');
+
+        return response()->json(['success' => true, 'data' => ['phone' => $phone]]);
     }
 
     private function page(string $key, string $notFound): JsonResponse

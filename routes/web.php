@@ -52,6 +52,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('result-categories', [ContentController::class, 'categories'])->middleware('perm:categories')->name('categories.edit');
         Route::post('result-categories', [ContentController::class, 'saveCategories'])->middleware('perm:categories,edit')->name('categories.update');
         Route::get('pages/{key}', [ContentController::class, 'page'])->whereIn('key', ['about', 'faq'])->middleware('perm:pages')->name('pages.edit');
+        Route::put('contact-phone', [ContentController::class, 'savePhone'])->middleware('perm:pages,edit')->name('phone.update');
         Route::put('pages/{key}', [ContentController::class, 'savePage'])->whereIn('key', ['about', 'faq'])->middleware('perm:pages,edit')->name('pages.update');
 
         Route::get('push', [NotificationsController::class, 'push'])->middleware('perm:push')->name('push.index');

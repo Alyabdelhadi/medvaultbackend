@@ -6,6 +6,7 @@ use App\Http\Controllers\ContentController as ApiContent;
 use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Models\ResultCategory;
+use App\Models\Setting;
 use App\Support\WordPress\Sanitize;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,7 +59,19 @@ class ContentController extends Controller
             'key' => $key,
             'meta' => $meta,
             'page' => Page::where('key', $key)->first() ?? new Page(['title' => $meta['title'], 'status' => 'publish']),
+            'phone' => Setting::get('support_phone') ?: config('medvault.support_phone'),
         ]);
+    }
+
+    /** The app's "Contact us" number (GET /phone). */
+    public function savePhone(Request $request): RedirectResponse
+    {
+        $request->validate(['phone' => ['required', 'string', 'regex:/^\+?[0-9][0-9 ()-]{5,24}$/']],
+            ['phone.regex' => 'Enter a phone number, for example +96176618326.']);
+        // Stored without spaces or dashes, the way the app always received it.
+        Setting::put('support_phone', preg_replace('/[^0-9+]/', '', (string) $request->input('phone')));
+
+        return back()->with('status', 'Contact number saved.');
     }
 
     public function savePage(string $key, Request $request): RedirectResponse

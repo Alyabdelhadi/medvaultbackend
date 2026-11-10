@@ -65,6 +65,16 @@ class ContentAdminTest extends AdminTestCase
         $this->getJson('/wp-json/custom/v1/about')->assertNotFound();
     }
 
+    public function test_the_contact_number_is_set_from_the_dashboard(): void
+    {
+        $this->get('/admin/pages/about')->assertSee('+96176618326');
+        $this->put('/admin/contact-phone', ['phone' => 'call me'])->assertSessionHasErrors('phone');
+        $this->getJson('/wp-json/custom/v1/phone')->assertJsonPath('data.phone', '+96176618326');
+
+        $this->put('/admin/contact-phone', ['phone' => '+961 70 123-456'])->assertSessionHas('status', 'Contact number saved.');
+        $this->getJson('/wp-json/custom/v1/phone')->assertExactJson(['success' => true, 'data' => ['phone' => '+96170123456']]);
+    }
+
     public function test_broadcast_goes_to_the_topic(): void
     {
         $key = openssl_pkey_new(['private_key_bits' => 2048]);
