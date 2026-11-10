@@ -26,7 +26,7 @@
 <body>
 <header>
     <h1>{{ $name }}</h1>
-    <a class="download" href="{{ $downloadUrl }}" download="{{ $name }}">
+    <a class="download" id="download" href="{{ $downloadUrl }}" download="{{ $name }}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         Download PDF
     </a>
@@ -39,14 +39,33 @@
 <script>
 (function () {
     var raw = @json($rawUrl);
+    var name = @json(preg_match('/\.pdf$/i', $name) ? $name : $name.'.pdf');
     var pages = document.getElementById('pages');
     var status = document.getElementById('status');
+    var bytes = null;
+    // Phone browsers (iOS Safari, in-app browsers) ignore "attachment" and
+    // show the PDF as a bare page; hand them the loaded file through the share
+    // sheet ("Save to Files" / "Download") instead. Desktop keeps the link.
+    document.getElementById('download').addEventListener('click', function (e) {
+        if (!bytes || !navigator.canShare || !matchMedia('(pointer: coarse)').matches) return;
+        var file = new File([bytes], name, { type: 'application/pdf' });
+        if (!navigator.canShare({ files: [file] })) return;
+        e.preventDefault();
+        navigator.share({ files: [file] }).catch(function () {});
+    });
     function fail() {
         status.innerHTML = 'The report could not be shown here. <a href="' + raw.replace(/"/g, '&quot;') + '">Open the PDF</a> or use Download PDF.';
     }
     if (!window.pdfjsLib) { fail(); return; }
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    pdfjsLib.getDocument(raw).promise.then(function (pdf) {
+    fetch(raw).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.arrayBuffer();
+    }).then(function (buf) {
+        bytes = buf;
+        // pdf.js hands its copy to the worker, which detaches it.
+        return pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+    }).then(function (pdf) {
         status.remove();
         var scale = Math.min(window.devicePixelRatio || 1, 2) * 1.5;
         var chain = Promise.resolve();
