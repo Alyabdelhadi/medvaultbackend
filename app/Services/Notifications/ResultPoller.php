@@ -163,7 +163,7 @@ final class ResultPoller
             return ['status' => 'skipped', 'notified' => 0];
         }
 
-        // An account the lab keeps refusing is retried once an hour, not every
+        // An account the lab keeps refusing is retried every 20 minutes, not every
         // cycle: a full lab login per cycle would spend the lab's rate limit.
         if ($this->api->hasGivenUp($user, $cfg)) {
             return ['status' => 'unauthorized', 'notified' => 0];

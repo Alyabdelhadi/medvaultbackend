@@ -133,7 +133,7 @@ class LabResultsTest extends ApiTestCase
         $this->assertStringNotContainsString('good', $response->getContent());
     }
 
-    public function test_a_lab_that_keeps_refusing_is_asked_once_an_hour_until_it_knows_the_patient(): void
+    public function test_a_lab_that_keeps_refusing_is_asked_every_20_minutes_until_it_knows_the_patient(): void
     {
         $this->verdun();
         [$user, $token] = $this->signedIn();
@@ -150,14 +150,14 @@ class LabResultsTest extends ApiTestCase
             return Http::response(str_contains($r->url(), '/results') ? self::RESULTS : self::REQUESTS);
         });
 
-        // This hour's one attempt is refused; the rest of the hour costs nothing.
+        // This window's one attempt is refused; the rest of it costs nothing.
         $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()->assertJsonPath('count', 0);
         $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()->assertJsonPath('count', 0);
         $this->assertSame(1, $logins);
 
-        // The patient visits the lab; the next hour's attempt gets through.
+        // The patient visits the lab; the next window's attempt gets through.
         $registered = true;
-        $this->travel(61)->minutes();
+        $this->travel(21)->minutes();
         $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()->assertJsonPath('count', 2);
         $this->assertSame(2, $logins);
         $this->assertSame(0, LabAccount::where('user_id', $user->id)->value('auth_failures'));

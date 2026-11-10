@@ -69,7 +69,7 @@ return [
         'max_auth_failures' => 5,
         // ...after which one attempt per this many minutes still gets through,
         // so a patient the lab registers later starts seeing results.
-        'given_up_retry_minutes' => 60,
+        'given_up_retry_minutes' => 20,
         // A 200 whose message is one of these is a throttle, not a refusal.
         // Bekaa answers a tripped limit with 200 {"success":false,"message":
         // "Too many attempts"}, byte-for-byte the shape of a refusal. Keep the
