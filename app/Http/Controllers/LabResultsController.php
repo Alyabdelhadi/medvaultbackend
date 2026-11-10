@@ -212,6 +212,21 @@ class LabResultsController extends Controller
             throw new WpError('lab_file_unavailable', 'This lab does not serve files through MedVault.', 404);
         }
 
+        // A browser opening the link gets a viewer page with a Download button;
+        // the page asks this same signed URL for the bytes. Anything that is not
+        // a browser (the app, a test, curl) gets the PDF as before.
+        $mode = (string) $request->query('view', '');
+        if ($mode === '' && str_contains((string) $request->header('Accept'), 'text/html')) {
+            $query = $request->query();
+
+            return response()->view('lab-file', [
+                'name' => self::fileName(basename(str_replace('\\', '/', $path))),
+                // Relative, so it resolves under whatever path the site is mounted at.
+                'rawUrl' => '?'.http_build_query([...$query, 'view' => 'raw']),
+                'downloadUrl' => '?'.http_build_query([...$query, 'view' => 'download']),
+            ]);
+        }
+
         if ($cfg->pdfMode === 'static_proxy') {
             $url = LabRows::staticFileUrl($cfg, $path) ?? throw new WpError('lab_file_unavailable', 'This file is not available.', 404);
             $response = $this->api->fetch($cfg, $url);
@@ -241,7 +256,7 @@ class LabResultsController extends Controller
         return response($body, 200, [
             'Content-Type' => $type,
             'Content-Length' => (string) strlen($body),
-            'Content-Disposition' => 'inline; filename="'.self::fileName(basename(str_replace('\\', '/', $path))).'"',
+            'Content-Disposition' => ($mode === 'download' ? 'attachment' : 'inline').'; filename="'.self::fileName(basename(str_replace('\\', '/', $path))).'"',
         ]);
     }
 

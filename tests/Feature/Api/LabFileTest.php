@@ -37,6 +37,26 @@ class LabFileTest extends ApiTestCase
         Http::assertSent(fn (Request $r) => $r->url() === 'https://tunnel.test/ResultPDF/26E007790_101.PDF' && $r->hasHeader('ngrok-skip-browser-warning', '1'));
     }
 
+    public function test_a_browser_gets_a_viewer_with_a_download_button(): void
+    {
+        $this->lab(9, 'Bekaa Hospital', ['api_pdf_mode' => 'static_proxy', 'api_pdf_base' => 'https://tunnel.test/']);
+        $this->patient();
+        Http::fake(['tunnel.test/*' => Http::response(self::PDF, 200, ['Content-Type' => 'application/pdf'])]);
+        $link = $this->link(9, 'ResultPDF/26E007790_101.PDF');
+
+        // The page itself costs no lab call; it points back at the same signed link.
+        $this->get($link, ['Accept' => 'text/html,application/xhtml+xml,*/*;q=0.8'])->assertOk()
+            ->assertSee('Download PDF')->assertSee('view=download', false)->assertSee('view=raw', false);
+        Http::assertNothingSent();
+
+        $download = $this->get($link.'&view=download', ['Accept' => 'text/html'])->assertOk();
+        $this->assertSame(self::PDF, $download->getContent());
+        $this->assertSame('attachment; filename="26E007790_101.PDF"', $download->headers->get('Content-Disposition'));
+
+        $raw = $this->get($link.'&view=raw', ['Accept' => 'text/html']);
+        $this->assertSame('inline; filename="26E007790_101.PDF"', $raw->headers->get('Content-Disposition'));
+    }
+
     public function test_a_tunnel_interstitial_is_an_outage_not_a_blank_pdf(): void
     {
         $this->lab(9, 'Bekaa Hospital', ['api_pdf_mode' => 'static_proxy', 'api_pdf_base' => 'https://tunnel.test/']);
