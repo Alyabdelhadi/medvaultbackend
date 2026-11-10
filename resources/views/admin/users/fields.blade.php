@@ -58,7 +58,7 @@
         <p class="hint">Optional: accounts are identified by mobile number.</p>{!! $err('email') !!}
     </div>
     <div>
-        <label for="dob">Date of birth</label>
+        <label for="dob">Date of birth *</label>
         <input id="dob" name="dob" type="date" value="{{ $val('dob') }}">{!! $err('dob') !!}
     </div>
     <div>

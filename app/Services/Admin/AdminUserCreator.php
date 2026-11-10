@@ -181,7 +181,10 @@ final class AdminUserCreator
             }
         }
 
-        if ($f['dob'] !== '') {
+        // Labs and reports need it for every person; a guarantor is a company.
+        if ($f['dob'] === '' && $type !== 'G') {
+            $errors['dob'] = 'Date of birth is required.';
+        } elseif ($f['dob'] !== '') {
             $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $f['dob']);
             if (! $parsed || $parsed->format('Y-m-d') !== $f['dob']) {
                 $errors['dob'] = 'Date of birth must be in YYYY-MM-DD format.';

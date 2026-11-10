@@ -15,7 +15,7 @@ class UsersAdminTest extends AdminTestCase
 {
     private function newPatient(array $overrides = []): array
     {
-        return ['function_type' => 'P', 'first_name' => 'Rana', 'last_name' => 'Haddad', 'mobile_number' => '03 123 456', 'password' => 'secret12', ...$overrides];
+        return ['function_type' => 'P', 'first_name' => 'Rana', 'last_name' => 'Haddad', 'mobile_number' => '03 123 456', 'password' => 'secret12', 'dob' => '1990-07-25', ...$overrides];
     }
 
     public function test_adding_a_patient_mirrors_app_registration(): void
@@ -226,7 +226,7 @@ class UsersAdminTest extends AdminTestCase
 
         $this->post('/admin/patients', $this->newPatient([
             'function_type' => 'PD', 'mobile_cc' => '961', 'mobile_number' => '70143335', 'password' => 'Lpgnx7VW',
-            'dob_d' => '7', 'dob_m' => '3', 'dob_y' => '85', 'gender' => 'female', 'lab_id' => '5',
+            'dob' => '', 'dob_d' => '7', 'dob_m' => '3', 'dob_y' => '85', 'gender' => 'female', 'lab_id' => '5',
         ]))->assertOk()
             // The slip: the name, the number as patients read it, the password.
             ->assertSee('Rana Haddad')->assertSee('70 143 335')->assertSee('Lpgnx7VW');
@@ -250,7 +250,25 @@ class UsersAdminTest extends AdminTestCase
         $this->assertNull(UserController::dobFromParts('', '', ''));
 
         $this->actingAs($this->admin());
-        $this->post('/admin/patients', $this->newPatient(['dob_d' => '31', 'dob_m' => '02', 'dob_y' => '1990']))
+        $this->post('/admin/patients', $this->newPatient(['dob' => '', 'dob_d' => '31', 'dob_m' => '02', 'dob_y' => '1990']))
             ->assertSessionHasErrors(['dob']);
+    }
+
+    public function test_date_of_birth_is_required_except_for_a_guarantor(): void
+    {
+        $this->actingAs($this->admin());
+
+        foreach (['P' => '70111001', 'PD' => '70111002', 'D' => '70111003'] as $type => $mobile) {
+            $this->post('/admin/patients', $this->newPatient(['function_type' => $type, 'mobile_number' => $mobile, 'dob' => '']))
+                ->assertSessionHasErrors(['dob' => 'Date of birth is required.']);
+        }
+        $this->post('/admin/guarantors', $this->newPatient(['function_type' => 'G', 'mobile_number' => '70111004', 'dob' => '']))
+            ->assertSessionHasNoErrors();
+
+        // An edit cannot clear it either.
+        $this->post('/admin/patients', $this->newPatient())->assertOk();
+        $rana = User::where('username', 'ranahaddad')->firstOrFail();
+        $this->put("/admin/patients/{$rana->id}", $this->newPatient(['dob' => '', 'password' => '']))
+            ->assertSessionHasErrors(['dob' => 'Date of birth is required.']);
     }
 }

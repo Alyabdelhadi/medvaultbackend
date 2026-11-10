@@ -14,7 +14,7 @@ class AuditLogTest extends AdminTestCase
 
     private function newPatient(array $overrides = []): array
     {
-        return ['function_type' => 'P', 'first_name' => 'Rana', 'last_name' => 'Haddad', 'mobile_number' => '03 123 456', 'password' => 'secret12', ...$overrides];
+        return ['function_type' => 'P', 'first_name' => 'Rana', 'last_name' => 'Haddad', 'mobile_number' => '03 123 456', 'password' => 'secret12', 'dob' => '1990-07-25', ...$overrides];
     }
 
     public function test_an_account_added_in_the_admin_records_who_added_it(): void

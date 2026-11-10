@@ -58,13 +58,13 @@
             </select>{!! $err('function_type') !!}
         </div>
         <div>
-            <label for="dob_d">Date of birth</label>
+            <label for="dob_d">Date of birth <span class="req">*</span></label>
             <div class="mv-dob">
                 <input id="dob_d" name="dob_d" type="text" inputmode="numeric" maxlength="2" placeholder="DD" value="{{ old('dob_d') }}" autocomplete="off" aria-label="Day">
                 <input id="dob_m" name="dob_m" type="text" inputmode="numeric" maxlength="2" placeholder="MM" value="{{ old('dob_m') }}" autocomplete="off" aria-label="Month">
                 <input id="dob_y" name="dob_y" type="text" inputmode="numeric" maxlength="4" placeholder="YYYY" value="{{ old('dob_y') }}" autocomplete="off" aria-label="Year">
             </div>
-            <p class="hint">Type digits, it jumps ahead. "85" = 1985</p>{!! $err('dob') !!}
+            <p class="hint">Type digits, it jumps ahead. "85" = 1985. Not needed for a guarantor.</p>{!! $err('dob') !!}
         </div>
         <div>
             <label>Gender</label>
