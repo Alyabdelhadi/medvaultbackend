@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Support\HttpErrors;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -175,12 +176,29 @@ final class LabApi
         return $out;
     }
 
-    /** Whether this lab has refused this account often enough to stop asking. */
+    /**
+     * Whether this lab has refused this account often enough to stop asking.
+     *
+     * Not forever: a patient who signs up before their first visit is refused
+     * until the lab registers them. One attempt per window gets through
+     * (shared by the app and the poller); a success resets the count, a
+     * refusal just waits for the next window.
+     */
     public function hasGivenUp(User $user, LabConfig $cfg): bool
     {
         $failures = (int) LabAccount::where('user_id', $user->id)->where('lab_id', $cfg->labId)->value($cfg->accountColumn('auth_failures'));
+        if ($failures < (int) config('medvault.labs.max_auth_failures')) {
+            return false;
+        }
 
-        return $failures >= (int) config('medvault.labs.max_auth_failures');
+        $key = self::retryKey($user->id, $cfg->labId, $cfg->accountColumn('auth_failures'));
+
+        return ! Cache::add($key, true, now()->addMinutes((int) config('medvault.labs.given_up_retry_minutes')));
+    }
+
+    public static function retryKey(int $userId, int $labId, string $column = 'auth_failures'): string
+    {
+        return "lab-retry:{$userId}:{$labId}:{$column}";
     }
 
     /** A plain GET to a URL the server built itself, with the lab's headers. */

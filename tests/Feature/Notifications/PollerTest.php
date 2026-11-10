@@ -7,6 +7,7 @@ use App\Models\Device;
 use App\Models\LabAccount;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Labs\LabApi;
 use App\Services\Notifications\ResultPoller;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -172,6 +173,7 @@ class PollerTest extends NotificationsTestCase
         User::factory()->create();
         $parked = User::factory()->create(['function_type' => null]);
         LabAccount::create(['user_id' => $parked->id, 'lab_id' => 5, 'external_token' => 't', 'auth_failures' => 5]);
+        Cache::put(LabApi::retryKey($parked->id, 5), true, now()->addHour()); // this hour's retry already spent
         Http::fake();
 
         $stats = $this->poll();

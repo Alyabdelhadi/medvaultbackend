@@ -163,10 +163,9 @@ final class ResultPoller
             return ['status' => 'skipped', 'notified' => 0];
         }
 
-        // An account the lab keeps refusing will never start working; without
-        // this it costs a full lab login every cycle, forever.
-        $account = LabAccount::firstOrNew(['user_id' => $user->id, 'lab_id' => $cfg->labId]);
-        if ((int) $account->auth_failures >= (int) config('medvault.labs.max_auth_failures')) {
+        // An account the lab keeps refusing is retried once an hour, not every
+        // cycle: a full lab login per cycle would spend the lab's rate limit.
+        if ($this->api->hasGivenUp($user, $cfg)) {
             return ['status' => 'unauthorized', 'notified' => 0];
         }
 

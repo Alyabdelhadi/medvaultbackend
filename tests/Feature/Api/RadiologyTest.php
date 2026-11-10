@@ -3,7 +3,9 @@
 namespace Tests\Feature\Api;
 
 use App\Models\LabAccount;
+use App\Services\Labs\LabApi;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -262,6 +264,7 @@ class RadiologyTest extends ApiTestCase
         $this->bekaaWithRadiologyHost();
         $token = $this->signedInAtBekaa();
         LabAccount::query()->update(['auth_failures' => (int) config('medvault.labs.max_auth_failures')]);
+        LabAccount::query()->each(fn ($a) => Cache::put(LabApi::retryKey($a->user_id, $a->lab_id), true, now()->addHour()));
         $this->fakeTwoHosts();
 
         $this->getJson(self::API.'/lab-results', $this->bearer($token))->assertOk()
