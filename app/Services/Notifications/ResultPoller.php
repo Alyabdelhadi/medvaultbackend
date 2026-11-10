@@ -19,7 +19,9 @@ use Illuminate\Support\Facades\Cache;
  * No lab has a webhook, so readiness is polled: a rotating batch of patients
  * per run, one request-list call per user per lab, diffed against the
  * readiness markers seen last time. A transition into ready pushes and
- * writes an in-app row.
+ * writes an in-app row, and so does an order seen for the first time that is
+ * not ready yet ("new request"), so a patient hears about a visit the day it
+ * is registered rather than only when it finishes.
  *
  * Load-bearing, so do not "simplify":
  *   * The first poll for a user at a lab only seeds. Otherwise every finished
@@ -157,11 +159,11 @@ final class ResultPoller
 
     public function pollUserLab(User $user, LabConfig $cfg): array
     {
-        // A lab with a constant status has no transition to detect; polling
-        // it would announce every order the moment it is created.
-        if ($cfg->readySignal === 'none') {
-            return ['status' => 'skipped', 'notified' => 0];
-        }
+        // A lab with a constant status has no transition to detect: its
+        // orders never raise "ready" (that would announce every order the
+        // moment it is created). They do raise "new request", which depends
+        // only on the order appearing, not on its status.
+        $readyKnown = $cfg->readySignal !== 'none';
 
         // An account the lab keeps refusing is retried every 20 minutes, not every
         // cycle: a full lab login per cycle would spend the lab's rate limit.
@@ -206,6 +208,7 @@ final class ResultPoller
 
         $current = [];
         $newlyReady = [];
+        $newOrders = [];
 
         foreach ($requests as $labRequest) {
             if (! is_array($labRequest)) {
@@ -220,7 +223,18 @@ final class ResultPoller
             $marker = $cfg->readySignal === 'report_datetime' ? $row['report_datetime'] : $row['status'];
             $current[$row['request_nb']] = $marker;
 
-            if ($seeding || ! $row['is_ready']) {
+            if ($seeding) {
+                continue;
+            }
+
+            // Not ready (or readiness unknowable here) and never seen before:
+            // a new order. One that is already ready when first seen gets the
+            // ready alert below instead, never both.
+            if (! $readyKnown || ! $row['is_ready']) {
+                if (! array_key_exists($row['request_nb'], $seen)) {
+                    $newOrders[] = $row;
+                }
+
                 continue;
             }
 
@@ -248,6 +262,11 @@ final class ResultPoller
         }
 
         $notified = 0;
+        foreach ($newOrders as $row) {
+            if ($this->notifyNewOrder($user, $row, $cfg, $readyKnown)) {
+                $notified++;
+            }
+        }
         foreach ($newlyReady as $row) {
             if ($this->notifyReady($user, $row, $cfg)) {
                 $notified++;
@@ -334,6 +353,31 @@ final class ResultPoller
 
         $this->notifier->notify($user, 'Your results are ready', $body, 'result_ready', [
             'type' => 'result_ready',
+            'request_nb' => $row['request_nb'],
+            'lab_id' => $cfg->labId,
+        ]);
+
+        return true;
+    }
+
+    /**
+     * An order the lab has registered but not finished. The wording promises
+     * a follow-up only where one will come: a lab with no ready signal never
+     * sends "ready", so saying "we'll let you know" there would be a lie.
+     */
+    private function notifyNewOrder(User $user, array $row, LabConfig $cfg, bool $readyKnown): bool
+    {
+        if (Notifier::alreadySent($user, 'new_request', $row['request_nb'], $cfg->labId)) {
+            return false;
+        }
+
+        $category = $row['cat_name'] !== '' ? $row['cat_name'] : 'Lab';
+        $at = count($this->labs->active()) > 1 && $row['lab_name'] !== '' ? ' at '.$row['lab_name'] : '';
+        $body = sprintf('A new %s request (%s)%s has been added to MedVault.', $category, $row['request_nb'], $at)
+            .($readyKnown ? " We'll let you know when the results are ready." : ' Open MedVault to follow it.');
+
+        $this->notifier->notify($user, 'New lab request', $body, 'new_request', [
+            'type' => 'new_request',
             'request_nb' => $row['request_nb'],
             'lab_id' => $cfg->labId,
         ]);

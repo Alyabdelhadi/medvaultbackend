@@ -68,13 +68,14 @@ class PollerTest extends NotificationsTestCase
         $this->labRows['lab5.test'][1]['status'] = 'F';
         $this->labRows['lab5.test'][] = ['request_nb' => '1003', 'status' => 'C'];
         $this->labRows['lab5.test'][] = ['request_nb' => '1004', 'status' => 'P'];
-        $this->assertSame(2, $this->poll()['notified']);
+        $this->assertSame(3, $this->poll()['notified']);
 
         $this->assertSame(
             ['BioChemistry results for request 1002 are now available in MedVault.', 'Lab results for request 1003 are now available in MedVault.'],
-            AppNotification::orderBy('id')->pluck('body')->all(),
+            AppNotification::where('type', 'result_ready')->orderBy('id')->pluck('body')->all(),
         );
-        $message = $this->fcmMessages()[0];
+        $this->assertSame(['1004'], AppNotification::where('type', 'new_request')->pluck('request_nb')->all());
+        $message = collect($this->fcmMessages())->firstWhere('data.request_nb', '1002');
         $this->assertSame('fcm-nour', $message['token']);
         $this->assertSame(['title' => 'Your results are ready', 'body' => 'BioChemistry results for request 1002 are now available in MedVault.'], $message['notification']);
         $this->assertSame(['type' => 'result_ready', 'request_nb' => '1002', 'lab_id' => '5'], $message['data']);
@@ -82,7 +83,59 @@ class PollerTest extends NotificationsTestCase
 
         // Nothing changed: nothing sent.
         $this->assertSame(0, $this->poll()['notified']);
-        $this->assertSame(2, AppNotification::count());
+        $this->assertSame(3, AppNotification::count());
+    }
+
+    public function test_a_new_pending_order_alerts_once_and_again_when_ready(): void
+    {
+        $user = $this->verdunWithPatient();
+        $this->labRows['lab5.test'] = [['request_nb' => '1001', 'status' => 'V']];
+        $this->fakeLabs();
+        $this->poll();
+
+        $this->labRows['lab5.test'][] = ['request_nb' => '1002', 'status' => 'P', 'cat_name' => 'Hematology'];
+        $this->assertSame(1, $this->poll()['notified']);
+        $row = AppNotification::sole();
+        $this->assertSame('new_request', $row->type);
+        $this->assertSame("A new Hematology request (1002) has been added to MedVault. We'll let you know when the results are ready.", $row->body);
+        $message = $this->fcmMessages()[0];
+        $this->assertSame('New lab request', $message['notification']['title']);
+        $this->assertSame(['type' => 'new_request', 'request_nb' => '1002', 'lab_id' => '5'], $message['data']);
+
+        // Still pending: nothing more.
+        $this->assertSame(0, $this->poll()['notified']);
+
+        // Finishing it is a separate alert.
+        $this->labRows['lab5.test'][1]['status'] = 'V';
+        $this->assertSame(1, $this->poll()['notified']);
+        $this->assertSame(['new_request', 'result_ready'], AppNotification::orderBy('id')->pluck('type')->all());
+    }
+
+    public function test_an_order_already_ready_when_first_seen_alerts_only_as_ready(): void
+    {
+        $this->verdunWithPatient();
+        $this->labRows['lab5.test'] = [];
+        $this->fakeLabs();
+        $this->poll();
+
+        $this->labRows['lab5.test'] = [['request_nb' => '2001', 'status' => 'F']];
+        $this->assertSame(1, $this->poll()['notified']);
+        $this->assertSame(['result_ready'], AppNotification::pluck('type')->all());
+    }
+
+    public function test_a_lost_seen_map_does_not_repeat_new_request_alerts(): void
+    {
+        $user = $this->verdunWithPatient();
+        $this->labRows['lab5.test'] = [];
+        $this->fakeLabs();
+        $this->poll();
+        $this->labRows['lab5.test'] = [['request_nb' => '3001', 'status' => 'P']];
+        $this->assertSame(1, $this->poll()['notified']);
+
+        // A map that has lost the order (restored, pruned) sees it as new again.
+        LabAccount::where('user_id', $user->id)->update(['seen_status' => json_encode([])]);
+        $this->assertSame(0, $this->poll()['notified']);
+        $this->assertSame(1, AppNotification::count());
     }
 
     public function test_a_lost_seen_map_reseeds_and_the_log_still_stops_duplicates(): void
@@ -117,16 +170,30 @@ class PollerTest extends NotificationsTestCase
         $this->assertSame(['7' => '2026-10-19 14:47:00'], LabAccount::first()->seen_status);
     }
 
-    /** Bekaa's status is a hardcoded 'V': polling it would alert at registration. */
-    public function test_a_lab_with_no_ready_signal_is_never_polled(): void
+    /**
+     * Bekaa's status is a hardcoded 'V': a "ready" alert there would fire at
+     * registration. Its orders raise "new request" only, worded without the
+     * promise of a ready alert that will never come.
+     */
+    public function test_a_lab_with_no_ready_signal_alerts_new_orders_but_never_ready(): void
     {
         $this->lab(9, 'Bekaa Hospital', ['ready_signal' => 'none']);
         $user = $this->patient();
         LabAccount::create(['user_id' => $user->id, 'lab_id' => 9, 'external_token' => 'good']);
-        Http::fake();
+        Device::create(['user_id' => $user->id, 'token' => 'fcm-b', 'platform' => 'ios']);
+        $this->labRows['lab9.test'] = [['request_nb' => '1', 'status' => 'V']];
+        $this->fakeLabs();
 
-        $this->assertSame(1, $this->poll()['skipped']);
-        Http::assertNothingSent();
+        $this->assertSame(1, $this->poll()['seeded']);
+
+        $this->labRows['lab9.test'][] = ['request_nb' => '2', 'status' => 'V', 'cat_name' => 'Microbiology'];
+        $this->assertSame(1, $this->poll()['notified']);
+        $row = AppNotification::sole();
+        $this->assertSame('new_request', $row->type);
+        $this->assertSame('A new Microbiology request (2) has been added to MedVault. Open MedVault to follow it.', $row->body);
+
+        $this->assertSame(0, $this->poll()['notified']);
+        $this->assertSame(0, AppNotification::where('type', 'result_ready')->count());
     }
 
     public function test_request_numbers_collide_across_labs_without_swallowing_alerts(): void

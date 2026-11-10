@@ -57,8 +57,9 @@ class RadiologyPollerTest extends NotificationsTestCase
         $this->assertSame(0, AppNotification::count(), 'a past report must not alert');
         $account = LabAccount::where('user_id', $user->id)->where('lab_id', 9)->first();
         $this->assertSame(['26X1' => '2026-04-01 12:00:00', '26X2' => ''], $account->radiology_seen_status);
-        // The order map is left alone: this lab's orders are not polled at all.
-        $this->assertNull($account->seen_status);
+        // This lab's orders are polled for new requests only (no ready
+        // signal), seeded on the same first run so history does not alert.
+        $this->assertSame(['26L1' => 'V'], $account->seen_status);
 
         $this->studies[1] = self::study('26X2', '2026-10-12 15:00:00', 'CT Chest');
         $this->assertSame(1, $this->poll()['notified']);
