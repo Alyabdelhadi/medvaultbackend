@@ -41,10 +41,64 @@
 .mv-submit{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .mv-submit .btn{padding:12px 22px;font-size:15px}
 .mv-submit .hint{flex:1;min-width:220px;margin:0}
+.mv-exists{max-width:1240px;margin-bottom:22px}
+.mv-exists-ok{color:#1d7f7f;font-weight:500}
+.mv-exists-warn{color:var(--warn);font-weight:500}
+.mv-exists-check{display:flex;gap:8px;align-items:center;font-weight:500;margin:14px 0 8px}
+.mv-exists-check input{width:auto}
 .mv-preview-label{font-size:12px;font-weight:600;letter-spacing:.08em;color:var(--muted);margin:2px 0 10px}
 </style>
 
 <h1>Add {{ \App\Services\Admin\UserDirectory::TYPES[$type] }}</h1>
+@if ($existing)
+    @php $ex = $existing['user']; $exSlug = ['P' => 'patients', 'D' => 'doctors', 'G' => 'guarantors'][$ex->functionType()] ?? 'patients'; @endphp
+    @if ($managerLab > 0 && $existing['alreadyHere'])
+        <div class="notice warning mv-exists">
+            <div><b>This number is already in your lab:</b> {{ $existing['masked'] }}.
+                <a href="{{ route('admin.users.show', [$exSlug, $ex]) }}">Open the account</a> to see it or set a new password.</div>
+        </div>
+    @else
+        <div class="card mv-exists">
+            <h2 style="margin-top:0">This number already has a MedVault account</h2>
+            <p>Registered as <b>{{ $existing['masked'] }}</b>@if ($managerLab === 0) · <a href="{{ route('admin.users.show', [$exSlug, $ex]) }}">open the account</a>@endif.</p>
+            @if ($existing['matches'])
+                <p class="mv-exists-ok">The first name and date of birth you typed match this account.</p>
+            @else
+                <p class="mv-exists-warn">The name or date of birth you typed does not match this account. Check with the patient before adding it: it may be someone else's number.</p>
+            @endif
+            <p class="hint">Adding it to your lab changes nothing about the account: same name, number and password, and the other lab keeps it too. Its password cannot be shown, because it is stored encrypted.</p>
+            <form method="post" action="{{ route('admin.users.link', $slug) }}">
+                @csrf
+                <input type="hidden" name="mobile_cc" value="{{ old('mobile_cc', '961') }}">
+                <input type="hidden" name="mobile_number" value="{{ old('mobile_number') }}">
+                @if ($managerLab === 0)
+                    <label for="link_lab">Add to lab</label>
+                    <select id="link_lab" name="lab_id" required>
+                        <option value="">— choose —</option>
+                        @foreach ($labs as $id => $title)<option value="{{ $id }}" @selected((int) old('lab_id') === $id)>{{ $title }}</option>@endforeach
+                    </select>{!! $err('lab_id') !!}
+                @endif
+                <label class="mv-exists-check"><input type="checkbox" name="reset_password" value="1" id="mv-reset"> The patient is here and wants a new password</label>
+                <div id="mv-reset-box" hidden>
+                    <div class="mv-pass" style="grid-template-columns:minmax(0,1fr)">
+                        <input name="password" type="text" value="{{ $suggestedPassword }}" autocomplete="off" spellcheck="false" aria-label="New password">
+                    </div>
+                    <p class="hint">Printed on the slip. Their phone is signed out and asks for this password.</p>
+                </div>{!! $err('password') !!}
+                <div class="mv-submit" style="margin-top:14px">
+                    <button class="btn" type="submit">@include('admin.partials.icon', ['name' => 'print']) Add to my lab &amp; print</button>
+                    <a class="btn secondary" href="{{ route('admin.users.create', $slug) }}">Cancel</a>
+                </div>
+            </form>
+        </div>
+    @endif
+    <script>
+    (function () {
+        var c = document.getElementById('mv-reset'), b = document.getElementById('mv-reset-box');
+        if (c) c.addEventListener('change', function () { b.hidden = !c.checked; });
+    })();
+    </script>
+@endif
 <div class="mv-add">
 <form method="post" action="{{ route('admin.users.store', $slug) }}" class="card" id="mv-add-form">
     @csrf
@@ -92,7 +146,7 @@
             <div class="mv-phone">
                 <select data-searchable name="mobile_cc" id="mobile_cc" aria-label="Country">
                     @foreach (\App\Support\Countries::LIST as [$flag, $dial, $country])
-                        <option title="{{ $country }}" data-search="{{ $country }} +{{ $dial }}" value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} +{{ $dial }}</option>
+                        <option title="{{ $country }}" value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} +{{ $dial }}</option>
                     @endforeach
                 </select>
                 <input id="mobile_number" name="mobile_number" type="tel" inputmode="tel" value="{{ old('mobile_number') }}" required autocomplete="off">

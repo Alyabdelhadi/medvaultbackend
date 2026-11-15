@@ -4,7 +4,8 @@
     the page that prints it once the account exists (filled here).
 
     $slipName, $slipLab, $slipMobile: null shows a placeholder.
-    $slipPassword: shown as typed; it exists only in this response.
+    $slipPassword: shown as typed; it exists only in this response. null:
+        an existing account linked to a lab, whose password cannot be shown.
     $slipDoctor: a doctor or guarantor, whose results are their patients'.
 --}}
 @php
@@ -21,7 +22,12 @@
         Sign in to the app with:
     </p>
     <div class="mv-slip-cred"><span>Mobile</span><b data-slip="mobile" class="{{ $slipMobile ? '' : 'mv-slip-ph' }}">{{ $slipMobile ?: '—' }}</b></div>
-    <div class="mv-slip-cred"><span>Password</span><b data-slip="password" class="mv-slip-mono">{{ $slipPassword }}</b></div>
+    @if ($slipPassword === null)
+        {{-- An existing account added to another lab: its password cannot be shown. --}}
+        <div class="mv-slip-cred"><span>Password</span><b>Your current MedVault password</b></div>
+    @else
+        <div class="mv-slip-cred"><span>Password</span><b data-slip="password" class="mv-slip-mono">{{ $slipPassword }}</b></div>
+    @endif
     <div class="mv-slip-app">
         @include('admin.partials.download-qr')
         <div>
@@ -30,7 +36,7 @@
             <small>medvaultapp.com/download</small>
         </div>
     </div>
-    <p class="mv-slip-foot">Keep this slip private. You can change your password after signing in.</p>
+    <p class="mv-slip-foot">@if ($slipPassword === null)Forgot it? Tap <b>Forgot Password</b> in the app to reset it by SMS.@else Keep this slip private. You can change your password after signing in.@endif</p>
 </div>
 <script>
 window.mvSlip = function (s) {

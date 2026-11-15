@@ -176,7 +176,7 @@ document.querySelectorAll('table.cards').forEach(function (table) {
 })();
 // <select data-searchable>: a button that opens a filterable list. The native
 // select stays in the form (and gets the change event), so posting is unchanged.
-// Each option may carry data-search with extra text to match, e.g. the country name.
+// Matches the option text, its title and any data-search, e.g. "ivoire" or "225".
 document.querySelectorAll('select[data-searchable]').forEach(function (select) {
     var wrap = document.createElement('div'); wrap.className = 'mv-combo';
     select.parentNode.insertBefore(wrap, select); wrap.appendChild(select);

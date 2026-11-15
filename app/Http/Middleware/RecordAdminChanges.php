@@ -26,6 +26,8 @@ class RecordAdminChanges
         'users.store' => 'Added {type}',
         'users.update' => 'Edited {type}',
         'users.password' => 'Set a new password for {type}',
+        'users.link' => 'Added an existing {type} to their lab',
+        'users.unlink' => 'Removed {type} from their lab',
         'users.destroy' => 'Deleted {type}',
         'users.export' => 'Exported {types} to Excel',
         'staff.store' => 'Created admin account',

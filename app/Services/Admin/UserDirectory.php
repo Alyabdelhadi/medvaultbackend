@@ -95,6 +95,51 @@ final class UserDirectory
     }
 
     /**
+     * Whether $viewer may change $user's details or delete the account.
+     *
+     * Seeing is not owning. A patient another lab created, and this lab only
+     * linked (Add → "already registered" → Add to my lab), is shared: this
+     * lab may open them and set a new password at the counter, but the name,
+     * number and the account itself stay with the lab that made it. Without
+     * that, two labs overwrite each other's corrections, and one lab could
+     * delete a patient the other still serves.
+     */
+    public function canEdit(User $viewer, User $user): bool
+    {
+        $labId = self::scopeFor($viewer);
+        if ($labId === 0) {
+            return $this->canSee($viewer, $user);
+        }
+
+        $ownedElsewhere = $user->owner_lab_id !== null && (int) $user->owner_lab_id !== $labId
+            && (int) $user->dg_lab_id !== $labId;
+
+        return ! $ownedElsewhere && $this->canSee($viewer, $user);
+    }
+
+    /** Whether $user was linked to $labId from the admin (and can be unlinked). */
+    public static function isLinked(User $user, int $labId): bool
+    {
+        return $labId > 0 && DB::table('user_labs')->where('user_id', $user->id)->where('lab_id', $labId)->exists();
+    }
+
+    /**
+     * "Y****a M****d": enough for a lab to recognise the person in front of
+     * it, too little to learn who another lab's patient is by typing numbers.
+     */
+    public static function maskedName(User $user): string
+    {
+        $name = trim((string) ($user->display_name ?: trim("{$user->first_name} {$user->last_name}")));
+
+        return collect(preg_split('/\s+/u', $name))->filter()->map(function (string $part) {
+            $len = mb_strlen($part);
+
+            return $len <= 2 ? mb_substr($part, 0, 1).str_repeat('*', $len - 1)
+                : mb_substr($part, 0, 1).str_repeat('*', $len - 2).mb_substr($part, -1);
+        })->implode(' ') ?: '(no name)';
+    }
+
+    /**
      * medvault_user_matches_search(): name, username or email contain the
      * term, or the stored number contains the term's digits. The number is
      * compared normalised, so "76 618 326" and "+96176618326" both match.

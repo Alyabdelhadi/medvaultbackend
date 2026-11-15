@@ -46,6 +46,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('{kind}', [HomeImagesController::class, 'store'])->middleware('perm:kind,create')->name('images.store');
             Route::put('{kind}/{id}', [HomeImagesController::class, 'update'])->whereNumber('id')->middleware('perm:kind,edit')->name('images.update');
             Route::delete('{kind}/{id}', [HomeImagesController::class, 'destroy'])->whereNumber('id')->middleware('perm:kind,delete')->name('images.destroy');
+            Route::post('{kind}/{id}/toggle', [HomeImagesController::class, 'toggle'])->whereNumber('id')->middleware('perm:kind,edit')->name('images.toggle');
             Route::post('{kind}/{id}/move/{direction}', [HomeImagesController::class, 'move'])->whereNumber('id')->whereIn('direction', ['up', 'down'])->middleware('perm:kind,edit')->name('images.move');
         });
 
@@ -100,11 +101,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('{slug}', [UserController::class, 'index'])->middleware('perm:slug')->name('users.index');
             Route::get('{slug}/new', [UserController::class, 'create'])->middleware('perm:slug,create')->name('users.create');
             Route::post('{slug}', [UserController::class, 'store'])->middleware('perm:slug,create')->name('users.store');
+            Route::post('{slug}/link', [UserController::class, 'link'])->middleware('perm:slug,create')->name('users.link');
             Route::get('{slug}/export', [UserController::class, 'export'])->middleware('perm:slug')->name('users.export');
             Route::get('{slug}/{user}', [UserController::class, 'show'])->whereNumber('user')->middleware('perm:slug')->name('users.show');
             Route::get('{slug}/{user}/edit', [UserController::class, 'edit'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.edit');
             Route::put('{slug}/{user}', [UserController::class, 'update'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.update');
             Route::post('{slug}/{user}/password', [UserController::class, 'password'])->whereNumber('user')->middleware('perm:slug,edit')->name('users.password');
+            Route::delete('{slug}/{user}/link', [UserController::class, 'unlink'])->whereNumber('user')->middleware('perm:slug,create')->name('users.unlink');
             Route::delete('{slug}/{user}', [UserController::class, 'destroy'])->whereNumber('user')->middleware('perm:slug,delete')->name('users.destroy');
         });
     });

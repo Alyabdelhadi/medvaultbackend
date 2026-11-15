@@ -26,7 +26,8 @@
                 </div>
             </div>
         </div>
-        @can('perm', [$slug, 'edit'])<a class="btn" href="{{ route('admin.users.edit', [$slug, $user]) }}">Edit</a>@endcan
+        @if (! $canEdit)<span class="pill" title="Another lab created this account. Its details are theirs to change.">Shared with another lab</span>
+        @else @can('perm', [$slug, 'edit'])<a class="btn" href="{{ route('admin.users.edit', [$slug, $user]) }}">Edit</a>@endcan @endif
     </div>
 </div>
 
@@ -100,7 +101,7 @@
     @include('admin.audit.rows', ['logs' => $history, 'compact' => true])
 @endif
 
-@if (auth()->user()->canAdmin($slug, 'edit') || (auth()->user()->canAdmin($slug, 'delete') && $user->id !== auth()->id()))
+@if (auth()->user()->canAdmin($slug, 'edit') || (auth()->user()->canAdmin($slug, 'delete') && $user->id !== auth()->id()) || $linkedHere)
     <div class="card danger-zone" style="margin-top:28px">
         <h2>Danger zone</h2>
         <div class="split">
@@ -115,8 +116,19 @@
                     <p class="hint">The app signs this person out and asks for the new password.</p>
                 </form>
             @endcan
+            @if ($linkedHere)
+                @can('perm', [$slug, 'create'])
+                    <form method="post" action="{{ route('admin.users.unlink', [$slug, $user]) }}"
+                          data-confirm="Remove {{ $name }} from your lab?" data-confirm-detail="Their account stays as it is; it just stops being listed in your lab." data-confirm-action="Remove">
+                        @csrf @method('delete')
+                        <label style="margin-top:0">Remove from your lab</label>
+                        <p class="hint" style="margin:0 0 10px">The account is not deleted. The lab that created it keeps it.</p>
+                        <button class="btn secondary" type="submit">Remove from my lab</button>
+                    </form>
+                @endcan
+            @endif
             @can('perm', [$slug, 'delete'])
-                @if ($user->id !== auth()->id())
+                @if ($user->id !== auth()->id() && $canEdit)
                     <form method="post" action="{{ route('admin.users.destroy', [$slug, $user]) }}"
                           data-confirm="Delete {{ $name }}?" data-confirm-detail="Their account, phones, lab connections and notifications are removed for good." data-confirm-action="Delete account">
                         @csrf @method('delete')

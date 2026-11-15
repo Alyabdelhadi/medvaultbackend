@@ -9,7 +9,9 @@ use App\Models\LabAccount;
 use App\Models\User;
 use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
+use App\Services\Accounts\UserLookup;
 use App\Services\Admin\AdminUserCreator;
+use App\Services\Audit\AuditTrail;
 use App\Services\Admin\UserDirectory;
 use App\Support\Countries;
 use Illuminate\Http\RedirectResponse;
@@ -65,6 +67,7 @@ class UserController extends Controller
         $formType = strtoupper((string) $request->query('type', $type));
 
         return view('admin.users.create', [
+            'existing' => $this->existingPanel($request),
             'slug' => $slug,
             'type' => $type,
             'formType' => isset(AdminUserCreator::FORM_TYPES[$formType]) ? $formType : $type,
@@ -100,6 +103,12 @@ class UserController extends Controller
         }
 
         [$user, $errors] = $creator->create($input, $request->user());
+        if ($user === null && isset($errors['mobile_number']) && ($existing = $this->linkable((string) $input['mobile_number'])) !== null) {
+            // Not a dead end: the form comes back offering to add the
+            // existing account to this lab. Only its id is carried, and
+            // link() finds it again from the number, never from the id.
+            return back()->withInput($request->except('password'))->withErrors($errors)->with('existing_user', $existing->id);
+        }
         if ($user === null) {
             // Not the password: the form suggests a new one, and the preview
             // shows whichever is in the field.
@@ -187,6 +196,8 @@ class UserController extends Controller
             'accounts' => LabAccount::where('user_id', $user->id)->orderBy('lab_id')->get(),
             'labNames' => Lab::pluck('title', 'id'),
             'devices' => $user->devices()->orderByDesc('updated_at')->get(),
+            'canEdit' => $this->directory->canEdit($request->user(), $user),
+            'linkedHere' => UserDirectory::isLinked($user, UserDirectory::scopeFor($request->user())),
             'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
             // The audit log is site-wide, so only those who may read it see this account's part of it.
             'history' => $request->user()->canAdmin('audit')
@@ -199,6 +210,7 @@ class UserController extends Controller
     {
         $this->type($slug);
         abort_unless($this->directory->canSee($request->user(), $user), 404);
+        abort_unless($this->directory->canEdit($request->user(), $user), 403, 'Another lab manages this account. You can set a new password from its page.');
 
         return view('admin.users.edit', [
             'slug' => $slug,
@@ -212,6 +224,7 @@ class UserController extends Controller
     {
         $this->type($slug);
         abort_unless($this->directory->canSee($request->user(), $user), 404);
+        abort_unless($this->directory->canEdit($request->user(), $user), 403, 'Another lab manages this account.');
 
         $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id']);
         $input['mobile_number'] = self::withCountry((string) $request->input('mobile_cc', ''), (string) ($input['mobile_number'] ?? ''));
@@ -226,6 +239,102 @@ class UserController extends Controller
         $message = 'Saved.'.($numberChanged ? ' The mobile number changed, so the labs will be asked again with the new number at the next sign-in or poll.' : '');
 
         return redirect()->route('admin.users.show', [$listSlug, $user])->with('status', $message);
+    }
+
+    /**
+     * Add an existing account to this lab, from the panel Add shows when the
+     * number is already registered. The account is found again by the
+     * number posted with the form, never by an id, so this cannot be used
+     * to attach an arbitrary account to a lab.
+     */
+    public function link(Request $request, string $slug, AdminUserCreator $creator, ApiTokens $tokens, AuditTrail $audit): RedirectResponse|View
+    {
+        $this->type($slug);
+        $cc = (string) $request->input('mobile_cc', '');
+        $national = trim((string) $request->input('mobile_number', ''));
+        $user = $this->linkable(self::withCountry($cc, $national));
+        abort_if($user === null, 404);
+
+        $labId = UserDirectory::scopeFor($request->user()) ?: (int) $request->input('lab_id', 0);
+        $reset = $request->boolean('reset_password');
+        $password = $reset ? (string) $request->input('password', '') : null;
+
+        $errors = $creator->link($user, $labId, $password, $tokens);
+        if ($errors !== []) {
+            return back()->withInput($request->except('password'))->withErrors($errors)->with('existing_user', $user->id);
+        }
+
+        $labs = Lab::pluck('title', 'id');
+        $labName = $labs[$labId] ?? "lab #{$labId}";
+        $audit->record('users.link', "Added existing {$this->noun($user)} to {$labName}".($reset ? ' and set a new password' : ''), $user, null, labId: $labId);
+
+        return view('admin.users.created', [
+            'slug' => array_search($user->functionType(), self::SLUGS, true) ?: $slug,
+            'user' => $user,
+            'linked' => true,
+            'reset' => $reset,
+            'labName' => $labName,
+            'slipName' => trim("{$user->first_name} {$user->last_name}") ?: $user->display_name,
+            'slipLab' => $labName,
+            'slipMobile' => self::slipMobile($cc, $national, (string) $user->mobile_number),
+            // Without a reset there is no password to print: the slip says to
+            // use the existing one, or Forgot Password in the app.
+            'slipPassword' => $reset ? (string) $password : null,
+            'slipDoctor' => in_array($user->functionType(), ['D', 'G'], true),
+        ]);
+    }
+
+    /** Undo a link: the account stays, this lab just stops listing it. */
+    public function unlink(Request $request, string $slug, User $user, AuditTrail $audit): RedirectResponse
+    {
+        $this->type($slug);
+        $labId = UserDirectory::scopeFor($request->user());
+        abort_unless(UserDirectory::isLinked($user, $labId), 404);
+
+        \Illuminate\Support\Facades\DB::table('user_labs')->where('user_id', $user->id)->where('lab_id', $labId)->delete();
+        $audit->record('users.unlink', "Removed {$this->noun($user)} from ".(Lab::find($labId)?->title ?? "lab #{$labId}"), $user, [], labId: $labId);
+
+        return redirect()->route('admin.users.index', $slug)->with('status', ($user->display_name ?: $user->username).' was removed from your lab. Their account is unchanged.');
+    }
+
+    /** An existing app user with this number that a lab may link, or null. */
+    private function linkable(string $mobile): ?User
+    {
+        $user = app(UserLookup::class)->byMobile($mobile);
+
+        return $user !== null && UserDirectory::withoutStaff(User::whereKey($user->id))->exists() ? $user : null;
+    }
+
+    /**
+     * What Add shows when the number is taken: who it is (masked), whether
+     * what was typed matches, and whether this lab already has them.
+     *
+     * @return array{user: User, masked: string, matches: bool, alreadyHere: bool}|null
+     */
+    private function existingPanel(Request $request): ?array
+    {
+        $id = $request->session()->get('existing_user');
+        $user = $id ? User::find($id) : null;
+        if ($user === null) {
+            return null;
+        }
+
+        $typedFirst = mb_strtolower(trim((string) $request->old('first_name', '')));
+        $typedDob = self::dobFromParts($request->old('dob_d'), $request->old('dob_m'), $request->old('dob_y')) ?? (string) $request->old('dob', '');
+        $storedDob = $user->dob ? substr((string) $user->dob, 0, 10) : '';
+
+        return [
+            'user' => $user,
+            'masked' => UserDirectory::maskedName($user),
+            'matches' => $typedFirst !== '' && $typedFirst === mb_strtolower(trim((string) $user->first_name))
+                && ($storedDob === '' || $typedDob === $storedDob),
+            'alreadyHere' => $this->directory->canSee($request->user(), $user),
+        ];
+    }
+
+    private function noun(User $user): string
+    {
+        return strtolower(UserDirectory::TYPES[in_array($user->functionType(), ['D', 'G'], true) ? $user->functionType() : 'P']);
     }
 
     public function export(Request $request, string $slug): StreamedResponse
@@ -276,6 +385,7 @@ class UserController extends Controller
     public function destroy(Request $request, string $slug, User $user): RedirectResponse
     {
         abort_unless($this->directory->canSee($request->user(), $user), 404);
+        abort_unless($this->directory->canEdit($request->user(), $user), 403, 'Another lab manages this account. Remove it from your lab instead.');
         abort_if($user->id === $request->user()->id, 403, 'You cannot delete your own account.');
 
         $name = $user->display_name ?: $user->username;

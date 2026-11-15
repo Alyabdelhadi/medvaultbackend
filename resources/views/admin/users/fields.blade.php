@@ -32,7 +32,7 @@
 <div class="phone-field">
     <select data-searchable name="mobile_cc" aria-label="Country">
         @foreach (\App\Support\Countries::LIST as [$flag, $dial, $country])
-            <option data-search="{{ $country }} +{{ $dial }}" value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} {{ $country }} +{{ $dial }}</option>
+            <option value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} {{ $country }} +{{ $dial }}</option>
         @endforeach
     </select>
     <input id="mobile_number" name="mobile_number" type="tel" inputmode="tel" value="{{ $number }}" placeholder="70 123 456" required>

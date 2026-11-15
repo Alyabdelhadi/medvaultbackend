@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Models\LabAccount;
 use App\Models\User;
+use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
 use App\Services\Accounts\UserLookup;
 use App\Support\Mobile;
@@ -115,6 +116,37 @@ final class AdminUserCreator
         });
 
         return [true, [], $numberChanged];
+    }
+
+    /**
+     * Adds an existing account to another lab: the number was already
+     * registered, by another lab or in the app. Nothing about the account
+     * changes; it gains a row in user_labs, which UserDirectory reads.
+     *
+     * $newPassword, when given, replaces the password and signs the app out:
+     * only for a patient standing at the counter who asked for it. The old
+     * password cannot be shown instead; it is stored as a one-way hash.
+     *
+     * @return array<string, string> field => message, empty on success
+     */
+    public function link(User $user, int $labId, ?string $newPassword, ApiTokens $tokens): array
+    {
+        if ($labId <= 0) {
+            return ['lab_id' => 'Choose the lab to add this person to.'];
+        }
+        if ($newPassword !== null && strlen($newPassword) < 6) {
+            return ['password' => 'Password must be at least 6 characters.'];
+        }
+
+        DB::transaction(function () use ($user, $labId, $newPassword, $tokens) {
+            DB::table('user_labs')->insertOrIgnore(['user_id' => $user->id, 'lab_id' => $labId]);
+            if ($newPassword !== null) {
+                $this->passwords->set($user, $newPassword);
+                $tokens->revoke($user);
+            }
+        });
+
+        return [];
     }
 
     /**
