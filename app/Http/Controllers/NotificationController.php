@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ReadsWordPressParams;
 use App\Http\WpError;
 use App\Models\AppNotification;
+use App\Services\Notifications\Broadcasts;
 use App\Services\Notifications\DeviceRegistry;
+use App\Services\Notifications\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -47,9 +49,12 @@ class NotificationController extends Controller
         return response()->json(['success' => true, 'message' => 'Device unregistered.']);
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, Broadcasts $broadcasts): JsonResponse
     {
         $user = $request->user();
+        // Topic pushes have no per-user row until now. `lang` picks the
+        // Health Day copy this phone received; older builds send none (English).
+        $broadcasts->deliver($user, (string) $request->input('lang', 'en'));
         $perPage = min(100, max(1, abs((int) $request->input('per_page', 30))));
         $page = max(1, abs((int) $request->input('page', 1)));
 
@@ -58,7 +63,7 @@ class NotificationController extends Controller
             ->forPage($page, $perPage)
             ->get();
 
-        $unread = AppNotification::where('user_id', $user->id)->where('is_read', false)->where('is_deleted', false)->count();
+        $unread = Notifier::unreadCount($user);
 
         $data = $rows->map(function (AppNotification $n) {
             $created = (string) $n->getRawOriginal('created_at');

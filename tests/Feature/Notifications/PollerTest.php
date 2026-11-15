@@ -79,7 +79,9 @@ class PollerTest extends NotificationsTestCase
         $this->assertSame('fcm-nour', $message['token']);
         $this->assertSame(['title' => 'Your results are ready', 'body' => 'BioChemistry results for request 1002 are now available in MedVault.'], $message['notification']);
         $this->assertSame(['type' => 'result_ready', 'request_nb' => '1002', 'lab_id' => '5'], $message['data']);
-        $this->assertSame(['payload' => ['aps' => ['sound' => 'default', 'badge' => 1]]], $message['apns']);
+        // The badge is the unread count at send time, not a fixed 1.
+        $this->assertSame('default', $message['apns']['payload']['aps']['sound']);
+        $this->assertGreaterThanOrEqual(1, $message['apns']['payload']['aps']['badge']);
 
         // Nothing changed: nothing sent.
         $this->assertSame(0, $this->poll()['notified']);

@@ -76,14 +76,18 @@ class Fcm
             : ['success' => false, 'message' => "FCM error ({$result['code']}): {$result['message']}"];
     }
 
-    /** One device. Data values must be strings; FCM rejects anything else. */
-    public function deviceMessage(string $token, string $title, string $body, array $data = []): array
+    /**
+     * One device. Data values must be strings; FCM rejects anything else.
+     * $badge is the number on the iPhone icon: the account's unread count, so
+     * it falls back as notifications are read instead of sticking at 1.
+     */
+    public function deviceMessage(string $token, string $title, string $body, array $data = [], int $badge = 1): array
     {
         $message = [
             'token' => $token,
             'notification' => ['title' => $title, 'body' => $body],
             'android' => ['priority' => 'high', 'notification' => ['channel_id' => self::CHANNEL]],
-            'apns' => ['payload' => ['aps' => ['sound' => 'default', 'badge' => 1]]],
+            'apns' => ['payload' => ['aps' => ['sound' => 'default', 'badge' => max(0, $badge)]]],
         ];
         if ($data !== []) {
             $message['data'] = array_map('strval', $data);

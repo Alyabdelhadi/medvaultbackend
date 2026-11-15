@@ -61,7 +61,7 @@ final class HealthDaySender
                     $day->{"last_sent_{$lang}"} = $now->toDateString();
                     $day->save();
                     PushMessage::create([
-                        'sender_id' => null, 'audience' => 'health', 'lab_id' => $day->sponsor_lab_id,
+                        'sender_id' => null, 'audience' => 'health', 'lang' => $lang, 'lab_id' => $day->sponsor_lab_id,
                         'title' => $day->{"title_{$lang}"}, 'body' => $day->{"body_{$lang}"}, 'recipients' => 0,
                     ]);
                 }

@@ -48,10 +48,12 @@ final class Notifier
             return ['success' => false, 'sent' => 0, 'message' => 'No registered devices for this user.'];
         }
 
+        // At least 1: this push is unread even if its row was not written (push() alone).
+        $badge = max(1, self::unreadCount($user));
         $sent = 0;
         $errors = [];
         foreach ($tokens as $token) {
-            $result = $this->fcm->sendRaw($this->fcm->deviceMessage($token, $title, $body, $data));
+            $result = $this->fcm->sendRaw($this->fcm->deviceMessage($token, $title, $body, $data, $badge));
             if ($result['success']) {
                 $sent++;
 
@@ -76,6 +78,11 @@ final class Notifier
     {
         return $requestNb !== '' && AppNotification::where('user_id', $user->id)
             ->where('type', $type)->where('request_nb', $requestNb)->where('lab_id', $labId)->exists();
+    }
+
+    public static function unreadCount(User $user): int
+    {
+        return AppNotification::where('user_id', $user->id)->where('is_read', false)->where('is_deleted', false)->count();
     }
 
     /** Keeps the log from growing without bound. */
