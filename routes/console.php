@@ -20,6 +20,10 @@ Schedule::command('medvault:poll-results')->everyMinute();
 
 Schedule::command('medvault:prune-logs')->dailyAt('03:30');
 
+// Awareness days (Admin → Health Days): each goes out once a year, at its
+// time in Beirut. Every five minutes, so a failed send is retried that day.
+Schedule::command('medvault:health-days')->everyFiveMinutes()->withoutOverlapping();
+
 // A heartbeat, so the admin and medvault:doctor can warn when cron is not
 // running the scheduler.
 Schedule::call(fn () => Setting::put('scheduler_seen_at', now()->format('Y-m-d H:i:s')))

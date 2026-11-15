@@ -46,6 +46,7 @@ final class AuditTrail
         ResultCategory::class => 'category',
         Setting::class => 'setting',
         PushMessage::class => 'message',
+        \App\Models\HealthDay::class => 'health day',
     ];
 
     /** Never stored, not even as "changed": tokens rotate on every sign-in. */
@@ -194,7 +195,7 @@ final class AuditTrail
         $label = match (true) {
             $model instanceof User => $model->display_name ?: $model->username,
             $model instanceof Lab => $model->title,
-            $model instanceof AdminGroup => $model->name,
+            $model instanceof AdminGroup, $model instanceof \App\Models\HealthDay => $model->name,
             $model instanceof LabPayment => '$'.number_format((float) $model->amount, 2).' on '.substr((string) $model->paid_on, 0, 10),
             $model instanceof Page, $model instanceof PushMessage, $model instanceof Slider => $model->title,
             $model instanceof ResultCategory => $model->label,

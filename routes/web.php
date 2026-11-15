@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ErrorLogController;
 use App\Http\Controllers\Admin\GroupController;
+use App\Http\Controllers\Admin\HealthDaysController;
 use App\Http\Controllers\Admin\HomeImagesController;
 use App\Http\Controllers\Admin\LabController;
 use App\Http\Controllers\Admin\NotificationsController;
@@ -56,6 +57,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('contact-phone', [ContentController::class, 'savePhone'])->middleware('perm:pages,edit')->name('phone.update');
         Route::put('pages/{key}', [ContentController::class, 'savePage'])->whereIn('key', ['about', 'faq'])->middleware('perm:pages,edit')->name('pages.update');
 
+        Route::get('health-days', [HealthDaysController::class, 'index'])->middleware('perm:healthdays')->name('healthdays.index');
+        Route::post('health-days', [HealthDaysController::class, 'store'])->middleware('perm:healthdays,create')->name('healthdays.store');
+        Route::put('health-days/{day}', [HealthDaysController::class, 'update'])->whereNumber('day')->middleware('perm:healthdays,edit')->name('healthdays.update');
+        Route::post('health-days/{day}/toggle', [HealthDaysController::class, 'toggle'])->whereNumber('day')->middleware('perm:healthdays,edit')->name('healthdays.toggle');
+        Route::delete('health-days/{day}', [HealthDaysController::class, 'destroy'])->whereNumber('day')->middleware('perm:healthdays,delete')->name('healthdays.destroy');
         Route::get('push', [NotificationsController::class, 'push'])->middleware('perm:push')->name('push.index');
         Route::post('push', [NotificationsController::class, 'send'])->middleware('perm:push,create')->name('push.send');
         Route::get('push/firebase', [NotificationsController::class, 'firebase'])->middleware('perm:firebase')->name('push.firebase');

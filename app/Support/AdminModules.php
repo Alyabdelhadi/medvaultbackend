@@ -44,6 +44,7 @@ final class AdminModules
             'Manage' => [
                 'labs' => ['label' => 'Labs', 'icon' => 'lab', 'route' => ['admin.labs.index'], 'active' => 'admin.labs.*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'push' => ['label' => 'Send Notification', 'icon' => 'send', 'route' => ['admin.push.index'], 'active' => 'admin.push.index', 'actions' => ['view', 'create']],
+                'healthdays' => ['label' => 'Health Days', 'icon' => 'calendar', 'route' => ['admin.healthdays.index'], 'active' => 'admin.healthdays.*', 'actions' => self::ACTIONS, 'site_wide' => true],
                 'accounting' => ['label' => 'Accounting', 'icon' => 'wallet', 'route' => ['admin.accounting.index'], 'active' => 'admin.accounting.*', 'actions' => self::ACTIONS, 'site_wide' => true, 'badge' => 'billing_due'],
             ],
             'Content' => [
