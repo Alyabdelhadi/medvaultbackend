@@ -33,6 +33,33 @@ class ContentAdminTest extends AdminTestCase
         ]]);
     }
 
+    public function test_an_inactive_slide_or_banner_is_left_out_of_the_api(): void
+    {
+        $this->post('/admin/sliders', ['image_url' => 'https://x.test/a.jpg']);
+        $this->post('/admin/sliders', ['image_url' => 'https://x.test/b.jpg']);
+        [$a, $b] = Slider::orderBy('position')->get();
+
+        $this->post("/admin/sliders/{$a->id}/toggle")->assertRedirect();
+        $this->assertFalse($a->fresh()->is_active);
+        // Renumbered from 1, so the app never sees a gap.
+        $this->getJson('/wp-json/custom/v1/sliders')->assertExactJson(['success' => true, 'count' => 1, 'data' => [
+            ['id' => 1, 'image_url' => 'https://x.test/b.jpg', 'title' => '', 'link_url' => ''],
+        ]]);
+
+        // None active: an empty list, which the app reads as "hide the slider".
+        $this->post("/admin/sliders/{$b->id}/toggle");
+        $this->getJson('/wp-json/custom/v1/sliders')->assertExactJson(['success' => true, 'count' => 0, 'data' => []]);
+        $this->get('/admin/sliders')->assertOk()->assertSee('None is active');
+
+        $this->post("/admin/sliders/{$a->id}/toggle");
+        $this->getJson('/wp-json/custom/v1/sliders')->assertJsonPath('count', 1);
+
+        $this->post('/admin/banners', ['image_url' => 'https://x.test/b.jpg', 'link_url' => 'https://x.test']);
+        $banner = \App\Models\Banner::first();
+        $this->post("/admin/banners/{$banner->id}/toggle");
+        $this->getJson('/wp-json/custom/v1/banners')->assertJsonPath('count', 0);
+    }
+
     public function test_banners_need_an_image_and_a_link(): void
     {
         $this->from('/admin/banners')->post('/admin/banners', ['image_url' => 'https://x.test/b.jpg'])->assertSessionHasErrors('link_url');

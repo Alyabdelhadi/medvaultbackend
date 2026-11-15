@@ -17,7 +17,8 @@ use Illuminate\View\View;
 /**
  * Slider Images and Banner Images. The app numbers them 1..n by position,
  * so order is what matters; sliders carry an optional title, banners a
- * required link.
+ * required link. Either can be switched off, which hides it from the app
+ * without deleting it; with none active the app hides that section.
  */
 class HomeImagesController extends Controller
 {
@@ -62,6 +63,19 @@ class HomeImagesController extends Controller
         $meta['model']::findOrFail($id)->delete();
 
         return redirect()->route('admin.images.index', $kind)->with('status', "{$meta['singular']} deleted.");
+    }
+
+    /** Active ↔ inactive. An inactive item stays here but the app no longer gets it. */
+    public function toggle(string $kind, int $id): RedirectResponse
+    {
+        $meta = $this->meta($kind);
+        $item = $meta['model']::findOrFail($id);
+        $item->is_active = ! $item->is_active;
+        $item->save();
+
+        $state = $item->is_active ? 'shown in the app again' : 'hidden from the app';
+
+        return redirect()->route('admin.images.index', $kind)->with('status', "{$meta['singular']} {$state}.");
     }
 
     /** Swaps an item with its neighbour, then renumbers 0..n. */

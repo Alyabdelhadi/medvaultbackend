@@ -118,6 +118,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;hei
 .notice.error{background:var(--err-50);border-color:#f3c9c6;color:var(--err)}
 .error-text{color:var(--err);font-size:12.5px;margin:4px 0 0}
 .muted{color:var(--muted)}
+tr.row-inactive .thumb{opacity:.45;filter:grayscale(1)}
 .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--teal-50);color:#1d7f7f}
 .thumb{width:96px;height:60px;object-fit:cover;border:1px solid var(--line);border-radius:8px;display:block}
 code{background:var(--sky-50);color:var(--navy);padding:2px 6px;border-radius:5px;font-size:12.5px}

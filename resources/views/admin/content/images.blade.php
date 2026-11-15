@@ -32,12 +32,15 @@
 </div>
 
 <h2>All {{ $meta['title'] }} ({{ $items->count() }})</h2>
+@if ($items->isNotEmpty() && $items->where('is_active', true)->isEmpty())
+    <div class="notice warning">None is active, so the app hides this section from the home screen.</div>
+@endif
 <div class="table-wrap">
 <table class="cards image-list">
-    <thead><tr><th style="width:84px">Order</th><th style="width:132px">Image</th>@if ($kind === 'sliders')<th>Title</th>@endif<th>Link</th><th style="width:1%"></th></tr></thead>
+    <thead><tr><th style="width:84px">Order</th><th style="width:132px">Image</th>@if ($kind === 'sliders')<th>Title</th>@endif<th>Link</th><th>Status</th><th style="width:1%"></th></tr></thead>
     <tbody>
     @forelse ($items as $i => $item)
-        <tr @class(['is-editing' => $editing?->id === $item->id])>
+        <tr @class(['is-editing' => $editing?->id === $item->id, 'row-inactive' => ! $item->is_active])>
             <td data-label="Order">
                 <div class="row-actions">
                     <span class="order-num">{{ $i + 1 }}</span>
@@ -52,15 +55,19 @@
             </td>
             @if ($kind === 'sliders')<td data-label="Title">{{ $item->title ?: '—' }}</td>@endif
             <td data-label="Link" class="cell-ellipsis">@if ($item->link_url)<a href="{{ $item->link_url }}" target="_blank" rel="noopener" title="{{ $item->link_url }}">{{ $item->link_url }}</a>@else <span class="muted">No link</span> @endif</td>
+            <td data-label="Status">@if ($item->is_active)<span class="status status-ok">Active</span>@else<span class="status status-paused">Inactive</span>@endif</td>
             <td class="card-actions">
                 <div class="row-actions">
+                    @can('perm', [$kind, 'edit'])
+                        <form method="post" action="{{ route('admin.images.toggle', [$kind, $item->id]) }}">@csrf<button class="btn secondary small">{{ $item->is_active ? 'Deactivate' : 'Activate' }}</button></form>
+                    @endcan
                     <a class="btn secondary small" href="{{ route('admin.images.index', [$kind, 'edit' => $item->id]) }}">Edit</a>
                     <form method="post" action="{{ route('admin.images.destroy', [$kind, $item->id]) }}" data-confirm="Delete this {{ strtolower($meta['singular']) }}?" data-confirm-detail="It disappears from the app's home screen.">@csrf @method('delete')<button class="btn danger small">Delete</button></form>
                 </div>
             </td>
         </tr>
     @empty
-        <tr><td colspan="5" class="muted">None added yet.</td></tr>
+        <tr><td colspan="6" class="muted">None added yet.</td></tr>
     @endforelse
     </tbody>
 </table>

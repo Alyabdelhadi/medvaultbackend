@@ -25,7 +25,8 @@ class ContentController extends Controller
     public function sliders(): JsonResponse
     {
         // Numbered 1..n by position, as the option array's index + 1 was.
-        $data = Slider::orderBy('position')->orderBy('id')->get()->values()->map(fn (Slider $s, int $i) => [
+        // Switched-off slides are left out; none at all hides the app's slider.
+        $data = Slider::where('is_active', true)->orderBy('position')->orderBy('id')->get()->values()->map(fn (Slider $s, int $i) => [
             'id' => $i + 1,
             'image_url' => (string) $s->image_url,
             'title' => (string) ($s->title ?? ''),
@@ -37,7 +38,7 @@ class ContentController extends Controller
 
     public function banners(): JsonResponse
     {
-        $data = Banner::orderBy('position')->orderBy('id')->get()->values()->map(fn (Banner $b, int $i) => [
+        $data = Banner::where('is_active', true)->orderBy('position')->orderBy('id')->get()->values()->map(fn (Banner $b, int $i) => [
             'id' => $i + 1,
             'image_url' => (string) $b->image_url,
             'link_url' => (string) ($b->link_url ?? ''),
