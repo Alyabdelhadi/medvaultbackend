@@ -122,6 +122,7 @@ final class Countries
         ['🇹🇩', '235', 'Chad'],
         ['🇨🇬', '242', 'Congo'],
         ['🇨🇩', '243', 'DR Congo'],
+        ['🇨🇮', '225', "Côte d'Ivoire"],
         ['🇪🇷', '291', 'Eritrea'],
         ['🇸🇿', '268', 'Eswatini'],
         ['🇪🇹', '251', 'Ethiopia'],

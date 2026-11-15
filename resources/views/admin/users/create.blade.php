@@ -90,9 +90,9 @@
         <div>
             <label for="mobile_number">Mobile number <span class="req">*</span></label>
             <div class="mv-phone">
-                <select name="mobile_cc" id="mobile_cc" aria-label="Country">
+                <select data-searchable name="mobile_cc" id="mobile_cc" aria-label="Country">
                     @foreach (\App\Support\Countries::LIST as [$flag, $dial, $country])
-                        <option title="{{ $country }}" value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} +{{ $dial }}</option>
+                        <option title="{{ $country }}" data-search="{{ $country }} +{{ $dial }}" value="{{ $dial }}" @selected($cc === $dial)>{{ $flag }} +{{ $dial }}</option>
                     @endforeach
                 </select>
                 <input id="mobile_number" name="mobile_number" type="tel" inputmode="tel" value="{{ old('mobile_number') }}" required autocomplete="off">

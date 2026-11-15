@@ -65,33 +65,32 @@
     </div>
 @endif
 
+{{-- Only the labs that know this person: a lab that refused the number, or has
+     not been asked yet, says nothing about them. No connected lab, no section. --}}
+@php
+    $connected = $accounts->filter(fn ($a) => $a->auth_failures < $maxRefusals && $a->getRawOriginal('external_token'));
+@endphp
+@if ($connected->isNotEmpty())
 <h2>Lab results</h2>
 <div class="table-wrap">
 <table class="cards">
     <thead><tr><th>Lab</th><th>Connection</th><th>Last checked</th><th>Result alerts</th></tr></thead>
     <tbody>
-    @forelse ($accounts as $a)
+    @foreach ($connected as $a)
         <tr>
             <td class="card-title">{{ $a->lab_id === 0 ? 'Verdun Medical Center (original)' : ($labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id) }}</td>
             <td>
-                @if ($a->auth_failures >= $maxRefusals)
-                    <span class="status status-paused">Not known to this lab</span>
-                @elseif ($a->getRawOriginal('external_token'))
-                    <span class="status status-ok">Connected</span>
-                @else
-                    <span class="status status-due">Not connected yet</span>
-                @endif
+                <span class="status status-ok">Connected</span>
                 @if ($a->poll_error)<span class="cell-sub">Last check failed: {{ \Illuminate\Support\Str::limit($a->poll_error, 80) }}</span>@endif
             </td>
             <td>{{ $a->polled_at ? $a->polled_at->diffForHumans() : 'Not yet' }}</td>
             <td>{{ $a->seen_status === null ? 'Start at the next check' : 'Watching '.count($a->seen_status).' order(s)' }}</td>
         </tr>
-    @empty
-        <tr><td colspan="4" class="muted">No lab is connected yet. That is normal until this person signs in to the app; a number no lab recognises stays this way.</td></tr>
-    @endforelse
+    @endforeach
     </tbody>
 </table>
 </div>
+@endif
 
 @if ($history !== null)
     <div class="page-head" style="margin:28px 0 0">

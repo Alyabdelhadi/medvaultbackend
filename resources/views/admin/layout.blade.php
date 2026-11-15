@@ -174,6 +174,70 @@ document.querySelectorAll('table.cards').forEach(function (table) {
     });
     box.addEventListener('close', function () { img.removeAttribute('src'); });
 })();
+// <select data-searchable>: a button that opens a filterable list. The native
+// select stays in the form (and gets the change event), so posting is unchanged.
+// Each option may carry data-search with extra text to match, e.g. the country name.
+document.querySelectorAll('select[data-searchable]').forEach(function (select) {
+    var wrap = document.createElement('div'); wrap.className = 'mv-combo';
+    select.parentNode.insertBefore(wrap, select); wrap.appendChild(select);
+    select.tabIndex = -1; select.setAttribute('aria-hidden', 'true');
+    var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'mv-combo-btn';
+    btn.setAttribute('aria-haspopup', 'listbox'); btn.setAttribute('aria-label', select.getAttribute('aria-label') || 'Choose');
+    var label = document.createElement('span'); btn.appendChild(label);
+    var pop = document.createElement('div'); pop.className = 'mv-combo-pop'; pop.hidden = true;
+    var search = document.createElement('input'); search.type = 'search'; search.placeholder = 'Search country or code'; search.autocomplete = 'off';
+    var list = document.createElement('ul'); list.className = 'mv-combo-list'; list.setAttribute('role', 'listbox');
+    pop.appendChild(search); pop.appendChild(list); wrap.appendChild(btn); wrap.appendChild(pop);
+    var opts = Array.prototype.map.call(select.options, function (o) {
+        var li = document.createElement('li'); li.setAttribute('role', 'option');
+        li.textContent = o.title ? o.text + '  ' + o.title : o.text;
+        li.dataset.value = o.value; list.appendChild(li);
+        return { li: li, opt: o, hay: ((o.dataset.search || '') + ' ' + o.text + ' ' + o.title).toLowerCase() };
+    });
+    var empty = document.createElement('li'); empty.className = 'mv-combo-empty'; empty.textContent = 'No match'; list.appendChild(empty);
+    var active = -1;
+    function visible() { return opts.filter(function (x) { return !x.li.hidden; }); }
+    function sync() { var o = select.options[select.selectedIndex]; label.textContent = o ? o.text : ''; btn.title = o && o.title || ''; }
+    function mark(i) {
+        var v = visible(); opts.forEach(function (x) { x.li.classList.remove('active'); });
+        active = Math.max(0, Math.min(i, v.length - 1));
+        if (v[active]) { v[active].li.classList.add('active'); v[active].li.scrollIntoView({ block: 'nearest' }); }
+    }
+    function filter() {
+        var q = search.value.trim().toLowerCase().replace(/^00/, '+'), n = 0;
+        opts.forEach(function (x) { var hit = !q || x.hay.indexOf(q) !== -1 || x.hay.indexOf('+' + q) !== -1; x.li.hidden = !hit; if (hit) n++; });
+        empty.hidden = n > 0; mark(0);
+    }
+    function open() {
+        pop.hidden = false; search.value = ''; filter();
+        opts.forEach(function (x) { x.li.setAttribute('aria-selected', x.opt.selected ? 'true' : 'false'); });
+        mark(visible().findIndex(function (x) { return x.opt.selected; }));
+        search.focus();
+    }
+    function close(refocus) { pop.hidden = true; if (refocus) btn.focus(); }
+    function pick(x) {
+        if (!x) return;
+        if (select.value !== x.opt.value) { select.value = x.opt.value; select.dispatchEvent(new Event('change', { bubbles: true })); }
+        sync(); close(true);
+    }
+    btn.addEventListener('click', function () { pop.hidden ? open() : close(); });
+    btn.addEventListener('keydown', function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(); } });
+    search.addEventListener('input', filter);
+    search.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') { e.preventDefault(); mark(active + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); mark(active - 1); }
+        else if (e.key === 'Enter') { e.preventDefault(); pick(visible()[active]); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(true); }
+        else if (e.key === 'Tab') close();
+    });
+    list.addEventListener('click', function (e) {
+        var li = e.target.closest('li[data-value]');
+        if (li) pick(opts.find(function (x) { return x.li === li; }));
+    });
+    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
+    select.addEventListener('change', sync);
+    sync();
+});
 // <form data-confirm="Question?" data-confirm-action="Button text" data-confirm-detail="...">:
 // asks in the page's own dialog before submitting.
 (function () {
