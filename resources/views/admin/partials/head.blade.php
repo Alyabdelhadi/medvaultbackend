@@ -138,6 +138,8 @@ input[type=file]::file-selector-button{font:500 13px var(--font);margin-right:12
 input[type=file]::file-selector-button:hover{border-color:var(--navy)}
 .sticky-actions{position:sticky;bottom:0;z-index:5;margin:18px -22px -20px;padding:14px 22px;background:rgba(255,255,255,.94);backdrop-filter:blur(6px);border-top:1px solid var(--line);border-radius:0 0 var(--radius) var(--radius)}
 form > .sticky-actions{margin:18px 0 0;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-lg)}
+/* Phones: every action shares one row instead of the last one wrapping alone. */
+@media (max-width:700px){.sticky-actions{flex-wrap:nowrap;gap:8px;padding:12px 14px}.sticky-actions .btn{flex:1 1 auto;min-width:0;justify-content:center;padding:9px 8px;font-size:13.5px;white-space:nowrap}}
 
 /* Tables: names read as text, not as a wall of links */
 td a:not(.btn){color:var(--ink);text-decoration:none;font-weight:500}

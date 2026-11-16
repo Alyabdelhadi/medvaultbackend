@@ -96,10 +96,8 @@ class WordPressImportTest extends TestCase
         $this->artisan('medvault:import-wordpress')->assertSuccessful();
 
         $accounts = LabAccount::where('user_id', 217)->get()->keyBy('lab_id');
-        $this->assertSame([0, 5, 9], $accounts->keys()->sort()->values()->all());
-
-        // The legacy un-suffixed account survives next to the migrated one.
-        $this->assertSame('legacy-token', $accounts[0]->external_token);
+        // The legacy un-suffixed account is not imported; Verdun's own row carries it.
+        $this->assertSame([5, 9], $accounts->keys()->sort()->values()->all());
         $this->assertSame('verdun-token', $accounts[5]->external_token);
         // Encrypted at rest.
         $raw = DB::table('lab_accounts')->where('user_id', 217)->where('lab_id', 5)->value('external_token');

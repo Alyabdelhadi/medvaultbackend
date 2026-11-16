@@ -218,6 +218,25 @@ class UsersAdminTest extends AdminTestCase
         $this->get('/admin/patients')->assertDontSee('/edit');
     }
 
+    public function test_labs_connected_lists_only_token_holding_labs_and_only_to_site_wide_accounts(): void
+    {
+        $this->lab(9, 'Bekaa Hospital');
+        $this->lab(5, 'Verdun Medical Center');
+        $this->lab(7, 'Al Hadi Lab');
+        $patient = User::factory()->create(['owner_lab_id' => 9, 'function_type' => 'P']);
+        LabAccount::create(['user_id' => $patient->id, 'lab_id' => 5, 'external_token' => 't']);
+        LabAccount::create(['user_id' => $patient->id, 'lab_id' => 7, 'external_token' => 't', 'auth_failures' => 99]);
+        LabAccount::create(['user_id' => $patient->id, 'lab_id' => 9, 'external_token' => null, 'auth_failures' => 1]);
+
+        $this->actingAs($this->admin());
+        $this->get("/admin/patients/{$patient->id}")->assertOk()
+            ->assertSee('Labs connected')->assertSee('Verdun Medical Center')
+            ->assertDontSee('Al Hadi Lab')->assertDontSee('Watching');
+
+        $this->actingAs($this->manager(9));
+        $this->get("/admin/patients/{$patient->id}")->assertOk()->assertDontSee('Labs connected');
+    }
+
     public function test_add_offers_patient_and_doctor_and_prints_the_slip(): void
     {
         $this->actingAs($this->admin());

@@ -306,9 +306,8 @@ final class WordPressImporter
 
     /**
      * One row per lab the user has any per-lab meta for. Un-suffixed keys
-     * are the legacy account, lab_id 0, and are kept even where the plugin's
-     * bootstrap already copied them onto the Verdun lab: an old app build
-     * that sends no lab_id still reads them.
+     * are the plugin's legacy single-lab account; its bootstrap already copied
+     * them onto the Verdun lab, so they are not imported.
      */
     private function labAccountRows(int $userId, array $m): array
     {
@@ -321,6 +320,8 @@ final class WordPressImporter
         }
 
         $rows = [];
+        unset($byLab[0]);
+
         foreach ($byLab as $labId => $fields) {
             $token = $this->nonEmpty($fields['lab_external_token'] ?? null);
 

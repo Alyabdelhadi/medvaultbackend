@@ -67,34 +67,26 @@
 @endif
 
 {{-- Only the labs that know this person: a lab that refused the number, or has
-     not been asked yet, says nothing about them. No connected lab, no section. --}}
+     not been asked yet, is not listed. Site-wide accounts only: a lab's own
+     account does not see which other labs this person is connected to. --}}
 @php
-    $connected = $accounts->filter(fn ($a) => $a->auth_failures < $maxRefusals && $a->getRawOriginal('external_token'));
+    $connected = $siteWide
+        ? $accounts->filter(fn ($a) => (int) $a->lab_id !== 0 && $a->auth_failures < $maxRefusals && $a->getRawOriginal('external_token'))
+        : collect();
 @endphp
 @if ($connected->isNotEmpty())
-<h2>Lab results</h2>
-<div class="table-wrap">
-<table class="cards">
-    <thead><tr><th>Lab</th><th>Connection</th><th>Last checked</th><th>Result alerts</th></tr></thead>
-    <tbody>
+<h2>Labs connected</h2>
+<div class="card">
+    <ul style="margin:0;padding-left:18px">
     @foreach ($connected as $a)
-        <tr>
-            <td class="card-title">{{ $a->lab_id === 0 ? 'Verdun Medical Center (original)' : ($labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id) }}</td>
-            <td>
-                <span class="status status-ok">Connected</span>
-                @if ($a->poll_error)<span class="cell-sub">Last check failed: {{ \Illuminate\Support\Str::limit($a->poll_error, 80) }}</span>@endif
-            </td>
-            <td>{{ $a->polled_at ? $a->polled_at->diffForHumans() : 'Not yet' }}</td>
-            <td>{{ $a->seen_status === null ? 'Start at the next check' : 'Watching '.count($a->seen_status).' order(s)' }}</td>
-        </tr>
+        <li>{{ $labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id }}</li>
     @endforeach
-    </tbody>
-</table>
+    </ul>
 </div>
 @endif
 
 @if ($history !== null)
-    <div class="page-head" style="margin:28px 0 0">
+    <div class="page-head" style="margin:28px 0 12px">
         <h2 style="margin:0">History</h2>
         <a class="btn small secondary" href="{{ route('admin.audit.index', ['subject' => 'user:'.$user->id]) }}">Full history</a>
     </div>
