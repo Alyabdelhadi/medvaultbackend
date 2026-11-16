@@ -49,13 +49,75 @@
         <label for="refer_text">Refer text</label>
         <textarea id="refer_text" name="refer_text">{{ $v('refer_text') }}</textarea>
         <p class="hint">Shown alongside the refer link in the app.</p>
-        <label for="slides">Lab slides</label>
-        <textarea id="slides" name="slides" placeholder="https://...">{{ old('slides', implode("\n", $lab->slides ?? [])) }}</textarea>
-        <p class="hint">One image URL per line, in display order. Uploads below are added at the end.</p>
-        <input name="slide_files[]" type="file" accept="image/*" multiple>
-        @if ($lab->slides)
-            <div class="thumb-strip">@foreach ($lab->slides as $slide)<a href="{{ $slide }}" data-lightbox="lab-slides" data-caption="Slide {{ $loop->iteration }}" class="zoom-thumb"><img class="thumb" src="{{ $slide }}" alt="Slide {{ $loop->iteration }}" loading="lazy"></a>@endforeach</div>
-        @endif
+        <label>Lab slides</label>
+        <p class="hint" style="margin-top:0">Shown in the app in this order. Use the bin to remove one and + to add images.</p>
+        {{-- Kept slides post back as slides[]; a removed tile simply stops posting. --}}
+        <div class="slide-grid" id="mv-slides">
+            @foreach (old('slides', $lab->slides ?? []) as $slide)
+                <div class="slide-tile">
+                    <a href="{{ $slide }}" data-lightbox="lab-slides" data-caption="Slide {{ $loop->iteration }}" class="zoom-thumb"><img src="{{ $slide }}" alt="Slide {{ $loop->iteration }}" loading="lazy"></a>
+                    <input type="hidden" name="slides[]" value="{{ $slide }}">
+                    <button type="button" class="slide-remove" title="Remove slide" aria-label="Remove slide">@include('admin.partials.icon', ['name' => 'trash'])</button>
+                </div>
+            @endforeach
+            <label class="slide-tile slide-add" title="Add slides" data-trash="{{ view('admin.partials.icon', ['name' => 'trash'])->render() }}">
+                @include('admin.partials.icon', ['name' => 'plus'])
+                <span>Add</span>
+                <input id="mv-slide-files" name="slide_files[]" type="file" accept="image/*" multiple hidden>
+            </label>
+        </div>
+        <script>
+        (function () {
+            var grid = document.getElementById('mv-slides');
+            var input = document.getElementById('mv-slide-files');
+            var add = grid.querySelector('.slide-add');
+            var picked = []; // new files, kept in step with input.files
+
+            function sync() {
+                var dt = new DataTransfer();
+                picked.forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            }
+
+            grid.addEventListener('click', function (e) {
+                var btn = e.target.closest('.slide-remove');
+                if (!btn) return;
+                e.preventDefault();
+                var tile = btn.closest('.slide-tile');
+                if (tile.dataset.file !== undefined) {
+                    var file = tile._file;
+                    picked = picked.filter(function (f) { return f !== file; });
+                    sync();
+                }
+                tile.remove();
+            });
+
+            input.addEventListener('change', function () {
+                // A second pick adds to the first instead of replacing it.
+                var fresh = Array.prototype.slice.call(input.files).filter(function (f) { return picked.indexOf(f) < 0; });
+                picked = picked.concat(fresh);
+                sync();
+                fresh.forEach(function (file) {
+                    var tile = document.createElement('div');
+                    tile.className = 'slide-tile is-new';
+                    tile.dataset.file = '';
+                    tile._file = file;
+                    var img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.alt = file.name;
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'slide-remove';
+                    btn.title = 'Remove slide';
+                    btn.setAttribute('aria-label', 'Remove slide');
+                    btn.innerHTML = grid.querySelector('.slide-add').dataset.trash;
+                    tile.appendChild(img);
+                    tile.appendChild(btn);
+                    grid.insertBefore(tile, add);
+                });
+            });
+        })();
+        </script>
     </div>
 
     <h2>Lab Results API</h2>

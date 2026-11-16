@@ -125,10 +125,13 @@ class LabController extends Controller
             $lab->image_url = $url;
         }
 
-        // One URL per line, in order; uploads are appended.
+        // The kept tiles in order (or, from older callers, one URL per line);
+        // uploads are appended.
+        $posted = $request->input('slides', []);
+        $lines = is_array($posted) ? $posted : preg_split('/\R/', (string) $posted);
         $slides = array_values(array_filter(array_map(
-            fn ($line) => Sanitize::urlRaw(trim($line)),
-            preg_split('/\R/', (string) $request->input('slides', '')),
+            fn ($line) => Sanitize::urlRaw(trim((string) $line)),
+            $lines,
         )));
         foreach ((array) $request->file('slide_files', []) as $file) {
             if ($url = $uploads->store($file, $request->ip())) {

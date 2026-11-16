@@ -71,17 +71,25 @@
      account does not see which other labs this person is connected to. --}}
 @php
     $connected = $siteWide
-        ? $accounts->filter(fn ($a) => (int) $a->lab_id !== 0 && $a->auth_failures < $maxRefusals && $a->getRawOriginal('external_token'))
+        // Any token counts: a lab whose radiology runs on its own server can
+        // know this person there only, and the app lists those studies too.
+        ? $accounts->filter(fn ($a) => (int) $a->lab_id !== 0 && (
+            ($a->getRawOriginal('external_token') && $a->auth_failures < $maxRefusals)
+            || ($a->getRawOriginal('radiology_token') && $a->radiology_auth_failures < $maxRefusals)
+            || ($a->getRawOriginal('doctor_token') && $a->doctor_auth_failures < $maxRefusals)))
         : collect();
 @endphp
 @if ($connected->isNotEmpty())
 <h2>Labs connected</h2>
-<div class="card">
-    <ul style="margin:0;padding-left:18px">
+<div class="card lab-list">
     @foreach ($connected as $a)
-        <li>{{ $labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id }}</li>
+        @php $logo = $labLogos[$a->lab_id] ?? null; @endphp
+        <div class="lab-list-row">
+            @if ($logo)<img class="lab-thumb" src="{{ $logo }}" alt="" loading="lazy">@else<span class="lab-thumb empty">@include('admin.partials.icon', ['name' => 'lab'])</span>@endif
+            <span class="lab-list-name">{{ $labNames[$a->lab_id] ?? 'Lab #'.$a->lab_id }}</span>
+            <span class="lab-list-time" @if ($a->polled_at) title="{{ $a->polled_at->format('Y-m-d H:i') }}" @endif>{{ $a->polled_at ? 'Checked '.$a->polled_at->diffForHumans() : 'Not checked yet' }}</span>
+        </div>
     @endforeach
-    </ul>
 </div>
 @endif
 

@@ -76,6 +76,21 @@ class LabsAdminTest extends AdminTestCase
         $this->assertCount(3, $lab->slides);
     }
 
+    public function test_slides_post_as_kept_tiles_in_order_and_a_removed_one_is_gone(): void
+    {
+        $this->actingAs($this->admin());
+        $this->post('/admin/labs', $this->form(['slides' => ['https://x.test/2.jpg', 'javascript:alert(1)', 'https://x.test/1.jpg']]));
+        $this->assertSame(['https://x.test/2.jpg', 'https://x.test/1.jpg'], Lab::sole()->slides);
+
+        $lab = Lab::sole();
+        $this->get("/admin/labs/{$lab->id}/edit")->assertOk()
+            ->assertSee('name="slides[]" value="https://x.test/2.jpg"', false)->assertSee('slide-add', false);
+
+        // Every tile removed: nothing posts, so the lab has no slides.
+        $this->put("/admin/labs/{$lab->id}", collect($this->form())->except('slides')->all());
+        $this->assertSame([], $lab->refresh()->slides);
+    }
+
     public function test_trash_hides_a_lab_from_the_app_and_restore_brings_it_back_as_a_draft(): void
     {
         $lab = $this->lab(5, 'Verdun Medical Center');

@@ -227,10 +227,13 @@ class UsersAdminTest extends AdminTestCase
         LabAccount::create(['user_id' => $patient->id, 'lab_id' => 5, 'external_token' => 't']);
         LabAccount::create(['user_id' => $patient->id, 'lab_id' => 7, 'external_token' => 't', 'auth_failures' => 99]);
         LabAccount::create(['user_id' => $patient->id, 'lab_id' => 9, 'external_token' => null, 'auth_failures' => 1]);
+        // Known only to a lab's separate radiology server: still connected.
+        $this->lab(11, 'Bekaa Radiology');
+        LabAccount::create(['user_id' => $patient->id, 'lab_id' => 11, 'radiology_token' => 'r']);
 
         $this->actingAs($this->admin());
         $this->get("/admin/patients/{$patient->id}")->assertOk()
-            ->assertSee('Labs connected')->assertSee('Verdun Medical Center')
+            ->assertSee('Labs connected')->assertSee('Verdun Medical Center')->assertSee('Bekaa Radiology')
             ->assertDontSee('Al Hadi Lab')->assertDontSee('Watching');
 
         $this->actingAs($this->manager(9));

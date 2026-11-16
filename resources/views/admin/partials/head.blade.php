@@ -147,6 +147,11 @@ td a:not(.btn):hover{color:var(--accent);text-decoration:underline}
 .cell-sub{display:block;font-size:12px;color:var(--muted);font-weight:400}
 .lab-thumb{width:44px;height:44px;border-radius:10px;object-fit:cover;border:1px solid var(--line);display:block}
 .lab-thumb.empty{display:grid;place-items:center;background:var(--sky-50);color:var(--navy)}
+.lab-list{padding:4px 22px}
+.lab-list-row{display:flex;align-items:center;gap:14px;padding:14px 0}
+.lab-list-row + .lab-list-row{border-top:1px solid var(--line)}
+.lab-list-name{font-weight:500;color:var(--navy);flex:1;min-width:0}
+.lab-list-time{color:var(--muted);font-size:13px;white-space:nowrap}
 
 /* Page furniture */
 [hidden]{display:none!important}
@@ -217,6 +222,15 @@ tfoot th{background:#f7f9fc;color:var(--ink);font-size:13px;text-transform:none;
 .zoom-thumb:hover::after,.zoom-thumb:focus-visible::after{background-color:rgba(13,27,75,.45);background-size:22px}
 .thumb{width:110px;height:64px}
 .thumb-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.slide-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px}
+.slide-tile{position:relative;aspect-ratio:16/10;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--sky-50)}
+.slide-tile img,.slide-tile .zoom-thumb{display:block;width:100%;height:100%;object-fit:cover}
+.slide-tile.is-new{outline:2px dashed var(--line-strong);outline-offset:-2px}
+.slide-remove{position:absolute;top:6px;right:6px;width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background:rgba(255,255,255,.92);color:var(--err);cursor:pointer;box-shadow:var(--shadow)}
+.slide-remove:hover{background:var(--err);color:#fff}
+.slide-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed var(--line-strong);background:#fff;color:var(--navy);cursor:pointer;font-size:13px;font-weight:500}
+.slide-add:hover{border-color:var(--navy);background:var(--sky-50)}
+.slide-add .icon{width:26px;height:26px}
 .image-preview{display:inline-block;margin-top:12px;border-radius:10px;cursor:zoom-in;line-height:0}
 .image-preview img{max-width:260px;max-height:150px;border-radius:10px;border:1px solid var(--line);object-fit:cover}
 .mv-lightbox{border:0;padding:0;background:transparent;max-width:100vw;max-height:100vh;width:100vw;height:100vh;overflow:hidden}

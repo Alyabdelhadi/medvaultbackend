@@ -195,6 +195,7 @@ class UserController extends Controller
             'user' => $user,
             'accounts' => LabAccount::where('user_id', $user->id)->orderBy('lab_id')->get(),
             'labNames' => Lab::pluck('title', 'id'),
+            'labLogos' => Lab::get(['id', 'image_url', 'thumbnail_url'])->mapWithKeys(fn ($l) => [$l->id => $l->image_url ?: $l->thumbnail_url]),
             'devices' => $user->devices()->orderByDesc('updated_at')->get(),
             'canEdit' => $this->directory->canEdit($request->user(), $user),
             'linkedHere' => UserDirectory::isLinked($user, UserDirectory::scopeFor($request->user())),
