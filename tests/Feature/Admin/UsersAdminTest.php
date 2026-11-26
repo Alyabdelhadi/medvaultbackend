@@ -200,6 +200,37 @@ class UsersAdminTest extends AdminTestCase
         $this->assertSame(['D', 9], [$rana->refresh()->function_type, $rana->dg_lab_id]);
     }
 
+    public function test_edit_shows_the_slip_and_save_and_print_sets_a_generated_password(): void
+    {
+        $this->lab(9, 'Bekaa Hospital');
+        $this->actingAs($this->admin());
+        $doctor = User::factory()->create(['function_type' => 'D', 'first_name' => 'Dana', 'last_name' => 'Khoury', 'mobile_number' => '70123456', 'mobile_e164' => '96170123456', 'dg_lab_id' => 9]);
+        app(Passwords::class)->set($doctor, 'oldpass1');
+        $form = fn (array $o) => $this->newPatient(['function_type' => 'D', 'first_name' => 'Dana', 'last_name' => 'Khoury', 'mobile_cc' => '961', 'mobile_number' => '70123456', 'password' => '', 'dg_lab_id' => 9, ...$o]);
+
+        // The preview: QR, lab, number and a freshly generated password.
+        $page = $this->get("/admin/doctors/{$doctor->id}/edit")->assertOk()
+            ->assertSee('class="mv-qr"', false)->assertSee('Save &amp; Print', false)
+            ->assertSee('Bekaa Hospital')->assertSee('70 123 456')->assertDontSee('Your current MedVault password');
+        preg_match('/name="print_password" id="print_password" value="([^"]+)"/', $page->getContent(), $m);
+        $this->assertMatchesRegularExpression('/^[A-HJ-NP-Za-km-z2-9]{8}$/', $m[1]);
+        $page->assertSee('data-slip="password" class="mv-slip-mono">'.$m[1], false);
+
+        // Plain Save with the field empty keeps the current password.
+        $this->put("/admin/doctors/{$doctor->id}", $form(['print_password' => $m[1]]))->assertRedirect();
+        $this->assertTrue(app(Passwords::class)->check($doctor->refresh(), 'oldpass1'));
+
+        // Save & Print sets the generated one and prints it.
+        $this->put("/admin/doctors/{$doctor->id}", $form(['print_password' => $m[1], 'after' => 'print']))
+            ->assertOk()->assertSee('Dana Khoury saved')->assertSee('window.print()', false)
+            ->assertSee($m[1])->assertDontSee('Add another');
+        $this->assertTrue(app(Passwords::class)->check($doctor->refresh(), $m[1]));
+
+        // A typed password wins over the generated one.
+        $this->put("/admin/doctors/{$doctor->id}", $form(['password' => 'Fresh123', 'print_password' => $m[1], 'after' => 'print']))->assertOk()->assertSee('Fresh123');
+        $this->assertTrue(app(Passwords::class)->check($doctor->refresh(), 'Fresh123'));
+    }
+
     public function test_a_lab_account_edits_only_its_own_people_and_cannot_move_them(): void
     {
         $this->lab(9, 'Bekaa Hospital');
@@ -218,7 +249,7 @@ class UsersAdminTest extends AdminTestCase
         $this->get('/admin/patients')->assertDontSee('/edit');
     }
 
-    public function test_labs_connected_lists_only_token_holding_labs_and_only_to_site_wide_accounts(): void
+    public function test_labs_connected_lists_token_holding_labs_and_a_lab_sees_only_its_own(): void
     {
         $this->lab(9, 'Bekaa Hospital');
         $this->lab(5, 'Verdun Medical Center');
@@ -236,8 +267,15 @@ class UsersAdminTest extends AdminTestCase
             ->assertSee('Labs connected')->assertSee('Verdun Medical Center')->assertSee('Bekaa Radiology')
             ->assertDontSee('Al Hadi Lab')->assertDontSee('Watching');
 
-        $this->actingAs($this->manager(9));
-        $this->get("/admin/patients/{$patient->id}")->assertOk()->assertDontSee('Labs connected');
+        // A lab's own account sees its own connection only, never the others.
+        $this->actingAs($this->manager(5));
+        $this->get("/admin/patients/{$patient->id}")->assertOk()
+            ->assertSee('Labs connected')->assertSee('Verdun Medical Center')
+            ->assertDontSee('Bekaa Radiology')->assertDontSee('Al Hadi Lab');
+
+        // Not connected to this lab (no token): nothing to show.
+        $this->actingAs($this->manager(9, ['username' => 'bekaa2']));
+        $this->get("/admin/patients/{$patient->id}")->assertOk()->assertDontSee('Labs connected')->assertDontSee('Verdun Medical Center');
     }
 
     public function test_add_offers_patient_and_doctor_and_prints_the_slip(): void

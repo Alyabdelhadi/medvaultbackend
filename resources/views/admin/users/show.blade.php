@@ -67,17 +67,18 @@
 @endif
 
 {{-- Only the labs that know this person: a lab that refused the number, or has
-     not been asked yet, is not listed. Site-wide accounts only: a lab's own
-     account does not see which other labs this person is connected to. --}}
+     not been asked yet, is not listed. A lab's own account sees its own row
+     only, never which other labs this person is connected to. --}}
 @php
-    $connected = $siteWide
-        // Any token counts: a lab whose radiology runs on its own server can
-        // know this person there only, and the app lists those studies too.
-        ? $accounts->filter(fn ($a) => (int) $a->lab_id !== 0 && (
+    $viewerLab = \App\Services\Admin\UserDirectory::scopeFor(auth()->user());
+    // Any token counts: a lab whose radiology runs on its own server can
+    // know this person there only, and the app lists those studies too.
+    $connected = $accounts->filter(fn ($a) => (int) $a->lab_id !== 0
+        && ($siteWide || (int) $a->lab_id === $viewerLab)
+        && (
             ($a->getRawOriginal('external_token') && $a->auth_failures < $maxRefusals)
             || ($a->getRawOriginal('radiology_token') && $a->radiology_auth_failures < $maxRefusals)
-            || ($a->getRawOriginal('doctor_token') && $a->doctor_auth_failures < $maxRefusals)))
-        : collect();
+            || ($a->getRawOriginal('doctor_token') && $a->doctor_auth_failures < $maxRefusals)));
 @endphp
 @if ($connected->isNotEmpty())
 <h2>Labs connected</h2>

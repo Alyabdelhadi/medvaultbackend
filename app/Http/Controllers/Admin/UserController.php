@@ -218,16 +218,41 @@ class UserController extends Controller
             'user' => $user,
             'labs' => Lab::where('status', '!=', 'trash')->orderBy('title')->pluck('title', 'id'),
             'managerLab' => UserDirectory::scopeFor($request->user()),
+            'slipLab' => self::slipLabFor($user),
+            'slipMobile' => self::slipMobileFor($user),
+            // Never stored: it becomes the password only through Save & Print.
+            'printPassword' => self::newPassword(),
         ]);
     }
 
-    public function update(Request $request, string $slug, User $user, AdminUserCreator $creator): RedirectResponse
+    private static function slipMobileFor(User $user): string
+    {
+        $split = \App\Support\Mobile::split((string) $user->mobile_number);
+
+        return self::slipMobile((string) $split['cc'], (string) $split['national'], (string) $user->mobile_number);
+    }
+
+    /** The lab named on the slip: a doctor's own lab, else whoever added them. */
+    private static function slipLabFor(User $user): ?string
+    {
+        $id = (int) ($user->dg_lab_id ?: $user->owner_lab_id);
+
+        return $id > 0 ? (Lab::whereKey($id)->value('title') ?: null) : null;
+    }
+
+    public function update(Request $request, string $slug, User $user, AdminUserCreator $creator): RedirectResponse|View
     {
         $this->type($slug);
         abort_unless($this->directory->canSee($request->user(), $user), 404);
         abort_unless($this->directory->canEdit($request->user(), $user), 403, 'Another lab manages this account.');
 
         $input = $request->only(['function_type', 'first_name', 'last_name', 'mobile_number', 'password', 'email', 'dob', 'gender', 'blood_type', 'dg_lab_id']);
+        // Save & Print always hands over a new password: the one typed, else
+        // the one generated on the form, else one made here (no JavaScript).
+        $printing = $request->input('after') === 'print';
+        if ($printing && trim((string) ($input['password'] ?? '')) === '') {
+            $input['password'] = (string) $request->input('print_password', '') ?: self::newPassword();
+        }
         $input['mobile_number'] = self::withCountry((string) $request->input('mobile_cc', ''), (string) ($input['mobile_number'] ?? ''));
 
         // A lab's own account cannot move anyone to another lab.
@@ -237,6 +262,24 @@ class UserController extends Controller
         }
 
         $listSlug = array_search($user->functionType(), self::SLUGS, true);
+
+        // Save & Print: the slip, rendered here for the same reason as on Add:
+        // the new password exists only in this request.
+        if ($printing) {
+            $user->refresh();
+
+            return view('admin.users.created', [
+                'slug' => $listSlug ?: $slug,
+                'user' => $user,
+                'updated' => true,
+                'slipName' => trim("{$user->first_name} {$user->last_name}") ?: $user->display_name,
+                'slipLab' => self::slipLabFor($user),
+                'slipMobile' => self::slipMobileFor($user),
+                'slipPassword' => (string) $input['password'],
+                'slipDoctor' => in_array($user->functionType(), ['D', 'G'], true),
+            ]);
+        }
+
         $message = 'Saved.'.($numberChanged ? ' The mobile number changed, so the labs will be asked again with the new number at the next sign-in or poll.' : '');
 
         return redirect()->route('admin.users.show', [$listSlug, $user])->with('status', $message);

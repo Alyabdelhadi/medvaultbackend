@@ -39,8 +39,19 @@
 </div>
 <p class="hint">Choose the country, then type the number without its country code, for example <code>70536332</code> or <code>03123456</code> for Lebanon.@if ($person) Changing the number signs the account out of its labs: they are asked again with the new number.@endif</p>{!! $err('mobile_number') !!}
 <label for="password">{{ $person ? 'New password' : 'Password *' }}</label>
-<input id="password" name="password" type="text" autocomplete="new-password" @unless ($person) required @endunless>
-<p class="hint">At least 6 characters.{{ $person ? ' Leave empty to keep the current one.' : ' Shown so you can pass it on; it is not sent to the user.' }}</p>{!! $err('password') !!}
+@if ($person)
+<div class="mv-pass">
+    <input id="password" name="password" type="text" autocomplete="new-password" spellcheck="false" placeholder="{{ $printPassword ?? '' }}">
+    <button type="button" id="mv-copy" title="Copy password" aria-label="Copy the password">@include('admin.partials.icon', ['name' => 'copy'])</button>
+    <button type="button" id="mv-regen" title="New password" aria-label="Generate a new password">@include('admin.partials.icon', ['name' => 'refresh'])</button>
+</div>
+{{-- Save & Print sets this generated password when the field is left empty. --}}
+<input type="hidden" name="print_password" id="print_password" value="{{ $printPassword ?? '' }}">
+<p class="hint">At least 6 characters. Save &amp; Print sets the generated password shown on the slip; Save with this field empty keeps the current one.</p>{!! $err('password') !!}
+@else
+<input id="password" name="password" type="text" autocomplete="new-password" required>
+<p class="hint">At least 6 characters. Shown so you can pass it on; it is not sent to the user.</p>{!! $err('password') !!}
+@endif
 <div class="grid">
     <div>
         <label for="username">Username</label>
