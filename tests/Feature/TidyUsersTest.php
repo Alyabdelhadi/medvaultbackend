@@ -20,10 +20,12 @@ class TidyUsersTest extends TestCase
             'mobile_number' => '+97470536332', 'mobile_e164' => '97470536332', 'mobile_cc' => '974', 'mobile_local' => null]);
         $arabic = User::factory()->create(['first_name' => 'علي', 'mobile_number' => '+96170111222',
             'mobile_e164' => '96170111222', 'mobile_local' => '70111222']);
+        $imported = User::factory()->create(['first_name' => null, 'last_name' => null, 'display_name' => 'fadel yaghi',
+            'mobile_number' => '+96171298550', 'mobile_e164' => '96171298550', 'mobile_local' => '71298550']);
         $odd = User::factory()->create(['first_name' => 'Nour', 'mobile_number' => '70999888', 'mobile_e164' => '96170000000']);
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'first_name' => 'admin', 'mobile_number' => '70555444']);
 
-        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 2 names and 1 mobile numbers')->assertSuccessful();
+        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 3 names and 1 mobile numbers')->assertSuccessful();
         $this->assertSame('jean-paul', $patient->fresh()->first_name);
 
         $this->artisan('medvault:tidy-users --apply')->assertSuccessful();
@@ -38,6 +40,8 @@ class TidyUsersTest extends TestCase
         $this->assertSame('Dr Rami', $doctor->fresh()->display_name);
         $this->assertSame('+97470536332', $doctor->fresh()->mobile_number);
         $this->assertSame('علي', $arabic->fresh()->first_name);
+        $this->assertSame('Fadel Yaghi', $imported->fresh()->display_name);
+        $this->assertNull($imported->fresh()->first_name);
         $this->assertSame('70999888', $odd->fresh()->mobile_number);
         $this->assertSame('admin', $admin->fresh()->first_name);
         $this->assertSame('70555444', $admin->fresh()->mobile_number);

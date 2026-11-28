@@ -43,22 +43,17 @@ class TidyUsers extends Command
                 foreach ($users as $user) {
                     $changes = [];
 
-                    $oldFirst = (string) $user->first_name;
-                    $oldLast = (string) $user->last_name;
-                    $first = PersonName::capitalize($oldFirst);
-                    $last = PersonName::capitalize($oldLast);
-                    if ($first !== $oldFirst || $last !== $oldLast) {
-                        if ($first !== $oldFirst) {
-                            $changes['first_name'] = $first;
+                    // Each of the three is capitalized on its own: many
+                    // imported accounts have only a display name, and one set
+                    // by hand ("Dr Rami") only gains capitals.
+                    foreach (['first_name', 'last_name', 'display_name'] as $column) {
+                        $old = (string) $user->{$column};
+                        $new = PersonName::capitalize($old);
+                        if ($new !== $old) {
+                            $changes[$column] = $new;
                         }
-                        if ($last !== $oldLast) {
-                            $changes['last_name'] = $last;
-                        }
-                        // Only a display name built from the two names is
-                        // rebuilt; one set by hand ("Dr Rami") is kept.
-                        if (mb_strtolower(trim((string) $user->display_name)) === mb_strtolower(trim($oldFirst.' '.$oldLast))) {
-                            $changes['display_name'] = trim($first.' '.$last);
-                        }
+                    }
+                    if ($changes !== []) {
                         $names++;
                     }
 
@@ -79,7 +74,7 @@ class TidyUsers extends Command
                     if (count($sample) < 20) {
                         $sample[] = [
                             $user->id,
-                            trim($user->first_name.' '.$user->last_name).' → '.trim(($changes['first_name'] ?? $user->first_name).' '.($changes['last_name'] ?? $user->last_name)),
+                            $user->display_name.' → '.($changes['display_name'] ?? $user->display_name),
                             $raw.' → '.($changes['mobile_number'] ?? $raw),
                         ];
                     }
