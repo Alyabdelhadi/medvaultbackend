@@ -33,6 +33,18 @@ class UsersAdminTest extends AdminTestCase
         $this->postJson('/wp-json/custom/v1/login', ['mobile_number' => '+9613123456', 'password' => 'secret12'])->assertOk();
     }
 
+    public function test_names_are_saved_capitalized_and_the_list_shows_date_and_time(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post('/admin/patients', $this->newPatient(['first_name' => 'fadel', 'last_name' => 'el yaghi']))->assertOk();
+        $user = User::where('mobile_e164', '9613123456')->firstOrFail();
+        $this->assertSame(['Fadel', 'El Yaghi', 'Fadel El Yaghi'], [$user->first_name, $user->last_name, $user->display_name]);
+
+        $this->get('/admin/patients')->assertSee('Fadel El Yaghi')->assertSee($user->created_at->format('d/m/y H:i'))
+            ->assertDontSee('<th>Email</th>', false);
+    }
+
     public function test_save_adds_without_the_slip(): void
     {
         $this->actingAs($this->admin());

@@ -6,14 +6,15 @@ use App\Models\User;
 use App\Services\Admin\UserDirectory;
 use App\Services\Audit\AuditTrail;
 use App\Support\Mobile;
+use App\Support\PersonName;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * One-off clean-up of patient, doctor and guarantor rows: first names start
- * with a capital, and every mobile number is stored as "+<cc><national>".
+ * Clean-up of patient, doctor and guarantor rows: first and last names start
+ * with a capital (PersonName, as every new account is saved), and every mobile number is stored as "+<cc><national>".
  *
  * Only the raw mobile_number changes. Lookups, OTP keys and duplicate checks
  * match on mobile_e164, which is left as it is, and lab usernames are shaped
@@ -24,7 +25,7 @@ use Illuminate\Support\Facades\DB;
  * Previews by default; --apply writes.
  */
 #[Signature('medvault:tidy-users {--apply : Write the changes; without it nothing is saved}')]
-#[Description('Capitalize first names and add the country code to mobile numbers of app users')]
+#[Description('Capitalize first and last names and add the country code to mobile numbers of app users')]
 class TidyUsers extends Command
 {
     public function handle(AuditTrail $audit): int
@@ -42,13 +43,21 @@ class TidyUsers extends Command
                 foreach ($users as $user) {
                     $changes = [];
 
-                    $first = self::capitalize((string) $user->first_name);
-                    if ($first !== (string) $user->first_name) {
-                        $changes['first_name'] = $first;
-                        // Only a display name the app built from the two
-                        // names is rebuilt; one set by hand is kept.
-                        if ($user->display_name === $user->first_name.' '.$user->last_name) {
-                            $changes['display_name'] = $first.' '.$user->last_name;
+                    $oldFirst = (string) $user->first_name;
+                    $oldLast = (string) $user->last_name;
+                    $first = PersonName::capitalize($oldFirst);
+                    $last = PersonName::capitalize($oldLast);
+                    if ($first !== $oldFirst || $last !== $oldLast) {
+                        if ($first !== $oldFirst) {
+                            $changes['first_name'] = $first;
+                        }
+                        if ($last !== $oldLast) {
+                            $changes['last_name'] = $last;
+                        }
+                        // Only a display name built from the two names is
+                        // rebuilt; one set by hand ("Dr Rami") is kept.
+                        if (mb_strtolower(trim((string) $user->display_name)) === mb_strtolower(trim($oldFirst.' '.$oldLast))) {
+                            $changes['display_name'] = trim($first.' '.$last);
                         }
                         $names++;
                     }
@@ -70,7 +79,7 @@ class TidyUsers extends Command
                     if (count($sample) < 20) {
                         $sample[] = [
                             $user->id,
-                            $user->first_name.' → '.($changes['first_name'] ?? $user->first_name),
+                            trim($user->first_name.' '.$user->last_name).' → '.trim(($changes['first_name'] ?? $user->first_name).' '.($changes['last_name'] ?? $user->last_name)),
                             $raw.' → '.($changes['mobile_number'] ?? $raw),
                         ];
                     }
@@ -84,7 +93,7 @@ class TidyUsers extends Command
         });
 
         if ($sample !== []) {
-            $this->table(['Id', 'First name', 'Mobile'], $sample);
+            $this->table(['Id', 'Name', 'Mobile'], $sample);
         }
         if ($skipped !== []) {
             $this->components->warn(count($skipped).' numbers left alone: the stored mobile_e164 does not match the raw number.');
@@ -92,25 +101,15 @@ class TidyUsers extends Command
         }
 
         if ($apply && $names + $mobiles > 0) {
-            $audit->record('console.tidy_users', "Capitalized {$names} first names and added the country code to {$mobiles} mobile numbers (medvault:tidy-users)", null, [], false);
+            $audit->record('console.tidy_users', "Capitalized the names of {$names} users and added the country code to {$mobiles} mobile numbers (medvault:tidy-users)", null, [], false);
         }
 
         $verb = $apply ? 'Updated' : 'Would update';
-        $this->components->info("{$verb} {$names} first names and {$mobiles} mobile numbers.");
+        $this->components->info("{$verb} {$names} names and {$mobiles} mobile numbers.");
         if (! $apply && $names + $mobiles > 0) {
             $this->line('  Run again with --apply to save. Back up the database first.');
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Capitalizes the first letter of each word ("jean-paul el" → "Jean-Paul El")
-     * and leaves the rest alone, so "McKenzie" stays as written. Arabic
-     * script has no case and passes through unchanged.
-     */
-    public static function capitalize(string $name): string
-    {
-        return preg_replace_callback('/(^|[\s\-])(\p{Ll})/u', fn ($m) => $m[1].mb_strtoupper($m[2]), $name);
     }
 }

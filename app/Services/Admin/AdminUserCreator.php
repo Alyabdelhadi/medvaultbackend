@@ -8,6 +8,7 @@ use App\Services\Accounts\ApiTokens;
 use App\Services\Accounts\Passwords;
 use App\Services\Accounts\UserLookup;
 use App\Support\Mobile;
+use App\Support\PersonName;
 use App\Support\WordPress\Sanitize;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
@@ -164,8 +165,8 @@ final class AdminUserCreator
 
         $f = [
             'type' => $type,
-            'first' => trim(Sanitize::textField($input['first_name'] ?? '')),
-            'last' => trim(Sanitize::textField($input['last_name'] ?? '')),
+            'first' => PersonName::capitalize(trim(Sanitize::textField($input['first_name'] ?? ''))),
+            'last' => PersonName::capitalize(trim(Sanitize::textField($input['last_name'] ?? ''))),
             'mobile' => trim(Sanitize::textField($input['mobile_number'] ?? '')),
             'password' => (string) ($input['password'] ?? ''),
             'username' => Sanitize::user(trim((string) ($input['username'] ?? '')), true),

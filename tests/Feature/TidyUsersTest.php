@@ -23,14 +23,15 @@ class TidyUsersTest extends TestCase
         $odd = User::factory()->create(['first_name' => 'Nour', 'mobile_number' => '70999888', 'mobile_e164' => '96170000000']);
         $admin = User::factory()->create(['role' => User::ROLE_ADMIN, 'first_name' => 'admin', 'mobile_number' => '70555444']);
 
-        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 2 first names and 1 mobile numbers')->assertSuccessful();
+        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 2 names and 1 mobile numbers')->assertSuccessful();
         $this->assertSame('jean-paul', $patient->fresh()->first_name);
 
         $this->artisan('medvault:tidy-users --apply')->assertSuccessful();
 
         $patient->refresh();
         $this->assertSame('Jean-Paul', $patient->first_name);
-        $this->assertSame('Jean-Paul haddad', $patient->display_name);
+        $this->assertSame('Haddad', $patient->last_name);
+        $this->assertSame('Jean-Paul Haddad', $patient->display_name);
         $this->assertSame('+9613123456', $patient->mobile_number);
         $this->assertSame('9613123456', $patient->mobile_e164);
         $this->assertSame('Rami', $doctor->fresh()->first_name);
@@ -41,6 +42,6 @@ class TidyUsersTest extends TestCase
         $this->assertSame('admin', $admin->fresh()->first_name);
         $this->assertSame('70555444', $admin->fresh()->mobile_number);
 
-        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 0 first names and 0 mobile numbers')->assertSuccessful();
+        $this->artisan('medvault:tidy-users')->expectsOutputToContain('Would update 0 names and 0 mobile numbers')->assertSuccessful();
     }
 }

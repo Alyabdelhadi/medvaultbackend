@@ -17,6 +17,7 @@ use App\Services\Labs\LabRegistry;
 use App\Services\Labs\LabTokenService;
 use App\Services\Otp\OtpService;
 use App\Support\Mobile;
+use App\Support\PersonName;
 use App\Support\WordPress\Sanitize;
 use DateTimeImmutable;
 use Illuminate\Http\JsonResponse;
@@ -331,6 +332,8 @@ class AuthController extends Controller
     /** wp_insert_user() with the plugin's metas. */
     private function createUser(string $username, string $password, string $email, string $first, string $last, string $mobile, array $extra): User
     {
+        $first = PersonName::capitalize($first);
+        $last = PersonName::capitalize($last);
         if ($username === '') {
             throw new WpError('registration_failed', 'Cannot create a user with an empty login name.', 500);
         }

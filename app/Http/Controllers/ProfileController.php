@@ -10,6 +10,7 @@ use App\Services\Accounts\Profile;
 use App\Services\Accounts\UserLookup;
 use App\Services\Audit\AuditTrail;
 use App\Support\Mobile;
+use App\Support\PersonName;
 use App\Support\WordPress\Sanitize;
 use DateTimeImmutable;
 use Illuminate\Http\JsonResponse;
@@ -62,8 +63,8 @@ class ProfileController extends Controller
 
         $changes = [];
         if ($first !== '' || $last !== '') {
-            $newFirst = $first !== '' ? $first : (string) $user->first_name;
-            $newLast = $last !== '' ? $last : (string) $user->last_name;
+            $newFirst = $first !== '' ? PersonName::capitalize($first) : (string) $user->first_name;
+            $newLast = $last !== '' ? PersonName::capitalize($last) : (string) $user->last_name;
             $changes += ['first_name' => $newFirst, 'last_name' => $newLast, 'display_name' => $newFirst.' '.$newLast];
         }
 
